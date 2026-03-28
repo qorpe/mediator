@@ -41,6 +41,9 @@ public static class BehaviorServiceCollectionExtensions
         if (configure is not null) services.Configure(configure);
         else services.Configure<LoggingBehaviorOptions>(_ => { });
 
+        services.AddOptionsWithValidateOnStart<LoggingBehaviorOptions>()
+            .Validate(o => o.MaxSerializedLength > 0, "MaxSerializedLength must be positive.");
+
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         return services;
     }
@@ -81,6 +84,9 @@ public static class BehaviorServiceCollectionExtensions
         if (configure is not null) services.Configure(configure);
         else services.Configure<TransactionBehaviorOptions>(_ => { });
 
+        services.AddOptionsWithValidateOnStart<TransactionBehaviorOptions>()
+            .Validate(o => o.DefaultTimeoutSeconds > 0, "DefaultTimeoutSeconds must be positive.");
+
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
         return services;
     }
@@ -95,6 +101,9 @@ public static class BehaviorServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         if (configure is not null) services.Configure(configure);
         else services.Configure<IdempotencyBehaviorOptions>(_ => { });
+
+        services.AddOptionsWithValidateOnStart<IdempotencyBehaviorOptions>()
+            .Validate(o => o.DefaultWindowSeconds > 0, "DefaultWindowSeconds must be positive.");
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(IdempotencyBehavior<,>));
         return services;
@@ -111,6 +120,11 @@ public static class BehaviorServiceCollectionExtensions
         if (configure is not null) services.Configure(configure);
         else services.Configure<PerformanceBehaviorOptions>(_ => { });
 
+        services.AddOptionsWithValidateOnStart<PerformanceBehaviorOptions>()
+            .Validate(o => o.WarningThresholdMs > 0, "WarningThresholdMs must be positive.")
+            .Validate(o => o.CriticalThresholdMs > 0, "CriticalThresholdMs must be positive.")
+            .Validate(o => o.CriticalThresholdMs > o.WarningThresholdMs, "CriticalThresholdMs must be greater than WarningThresholdMs.");
+
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehavior<,>));
         return services;
     }
@@ -126,6 +140,11 @@ public static class BehaviorServiceCollectionExtensions
         if (configure is not null) services.Configure(configure);
         else services.Configure<RetryBehaviorOptions>(_ => { });
 
+        services.AddOptionsWithValidateOnStart<RetryBehaviorOptions>()
+            .Validate(o => o.DefaultMaxRetryCount >= 0, "DefaultMaxRetryCount must be non-negative.")
+            .Validate(o => o.DefaultInitialDelayMs > 0, "DefaultInitialDelayMs must be positive.")
+            .Validate(o => o.MaxBackoffCapSeconds > 0, "MaxBackoffCapSeconds must be positive.");
+
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(RetryBehavior<,>));
         return services;
     }
@@ -140,6 +159,10 @@ public static class BehaviorServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         if (configure is not null) services.Configure(configure);
         else services.Configure<CachingBehaviorOptions>(_ => { });
+
+        services.AddOptionsWithValidateOnStart<CachingBehaviorOptions>()
+            .Validate(o => o.DefaultDurationSeconds > 0, "DefaultDurationSeconds must be positive.")
+            .Validate(o => o.MaxLockPoolSize > 0, "MaxLockPoolSize must be positive.");
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
