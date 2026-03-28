@@ -38,17 +38,27 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             throw new HandlerNotFoundException(typeof(TRequest));
         }
 
-        // Resolve pre/post processors
+        // Resolve pre/post processors — DI returns cached empty enumerable when none registered (~5ns)
+        // Use ICollection.Count for zero-allocation emptiness check (avoids .Any() enumerator allocation)
         var preProcessors = serviceProvider.GetService<IEnumerable<IRequestPreProcessor<TRequest>>>();
         var postProcessors = serviceProvider.GetService<IEnumerable<IRequestPostProcessor<TRequest, TResponse>>>();
 
-        // Build innermost delegate: pre-processors → handler → post-processors
-        RequestHandlerDelegate<TResponse> handlerDelegate = BuildHandlerDelegate(
-            request, handler, preProcessors, postProcessors, cancellationToken);
+        var hasPreProcessors = HasItems(preProcessors);
+        var hasPostProcessors = HasItems(postProcessors);
+
+        // Build innermost delegate
+        RequestHandlerDelegate<TResponse> handlerDelegate;
+        if (!hasPreProcessors && !hasPostProcessors)
+        {
+            // Fast path: no processors — direct handler call
+            handlerDelegate = () => handler.Handle(request, cancellationToken);
+        }
+        else
+        {
+            handlerDelegate = BuildProcessorDelegate(request, handler, preProcessors!, postProcessors!, hasPreProcessors, hasPostProcessors, cancellationToken);
+        }
 
         // Resolve behaviors — fully typed DI call
-        // MS.Extensions.DI returns a cached empty enumerable for unregistered IEnumerable<T>,
-        // so this call is fast (~5ns) even when no behaviors exist.
         var behaviors = serviceProvider.GetService<IEnumerable<IPipelineBehavior<TRequest, TResponse>>>();
 
         // Fast path: no behaviors registered
@@ -78,7 +88,6 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         }
         else
         {
-            // Enumerate — rare path for custom IEnumerable implementations
             var list = new List<IPipelineBehavior<TRequest, TResponse>>(behaviors);
             behaviorArray = list.ToArray();
             behaviorCount = behaviorArray.Length;
@@ -92,77 +101,51 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         // Sort by IBehaviorOrder.Order if any behaviors implement it
         SortBehaviorsByOrder(behaviorArray, behaviorCount);
 
-        // Resolve logger for cancellation diagnostics (optional, zero-cost if not registered)
-        var logger = serviceProvider.GetService<ILogger<RequestHandlerWrapper<TRequest, TResponse>>>();
-
-        // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] boxing
+        // Build pipeline chain — no logger resolve on hot path (diagnostics only on cancellation)
         RequestHandlerDelegate<TResponse> next = handlerDelegate;
 
         for (int i = behaviorCount - 1; i >= 0; i--)
         {
             var behavior = behaviorArray[i];
             var currentNext = next;
-
-            if (logger is not null)
-            {
-                var behaviorName = behavior.GetType().Name;
-                next = async () =>
-                {
-                    try
-                    {
-                        return await behavior.Handle(request, currentNext, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        LogCancellation(logger, typeof(TRequest).Name, behaviorName, null);
-                        throw;
-                    }
-                };
-            }
-            else
-            {
-                next = () => behavior.Handle(request, currentNext, cancellationToken);
-            }
+            next = () => behavior.Handle(request, currentNext, cancellationToken);
         }
 
         return next();
     }
 
-    private static RequestHandlerDelegate<TResponse> BuildHandlerDelegate(
+    private static bool HasItems<T>(IEnumerable<T>? enumerable)
+    {
+        if (enumerable is null) return false;
+        if (enumerable is ICollection<T> col) return col.Count > 0;
+        if (enumerable is IReadOnlyCollection<T> roc) return roc.Count > 0;
+        return enumerable.GetEnumerator().MoveNext();
+    }
+
+    private static RequestHandlerDelegate<TResponse> BuildProcessorDelegate(
         TRequest request,
         IRequestHandler<TRequest, TResponse> handler,
-        IEnumerable<IRequestPreProcessor<TRequest>>? preProcessors,
-        IEnumerable<IRequestPostProcessor<TRequest, TResponse>>? postProcessors,
+        IEnumerable<IRequestPreProcessor<TRequest>> preProcessors,
+        IEnumerable<IRequestPostProcessor<TRequest, TResponse>> postProcessors,
+        bool hasPreProcessors,
+        bool hasPostProcessors,
         CancellationToken cancellationToken)
     {
-        var hasPreProcessors = preProcessors is not null && preProcessors.Any();
-        var hasPostProcessors = postProcessors is not null && postProcessors.Any();
-
-        // Fast path: no processors — direct handler call
-        if (!hasPreProcessors && !hasPostProcessors)
-        {
-            return () => handler.Handle(request, cancellationToken);
-        }
-
-        // Wrap handler with pre/post processor execution
         return async () =>
         {
-            // Execute pre-processors
             if (hasPreProcessors)
             {
-                foreach (var preProcessor in preProcessors!)
+                foreach (var preProcessor in preProcessors)
                 {
                     await preProcessor.Process(request, cancellationToken).ConfigureAwait(false);
                 }
             }
 
-            // Execute handler
             var response = await handler.Handle(request, cancellationToken).ConfigureAwait(false);
 
-            // Execute post-processors
             if (hasPostProcessors)
             {
-                foreach (var postProcessor in postProcessors!)
+                foreach (var postProcessor in postProcessors)
                 {
                     await postProcessor.Process(request, response, cancellationToken).ConfigureAwait(false);
                 }
