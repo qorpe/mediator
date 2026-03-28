@@ -11,7 +11,7 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 
 /// <summary>
 /// Pipeline behavior that caches query responses. Commands are automatically skipped.
-/// Includes stampede prevention using SemaphoreSlim per cache key.
+/// Includes stampede prevention using a bounded lock pool with automatic eviction.
 /// </summary>
 public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -20,8 +20,8 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
     private readonly CachingBehaviorOptions _options;
 
-    // Per-key semaphores for stampede prevention
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> KeyLocks = new(StringComparer.Ordinal);
+    // Bounded lock pool for stampede prevention with automatic eviction
+    private static readonly BoundedLockPool LockPool = new();
 
     public CachingBehavior(
         ILogger<CachingBehavior<TRequest, TResponse>> logger,
@@ -70,8 +70,8 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
         var cacheKey = GenerateCacheKey(request, cacheableAttr.CacheKeyPrefix);
 
-        // Stampede prevention: acquire per-key semaphore
-        var keyLock = KeyLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+        // Stampede prevention: acquire per-key lock from bounded pool
+        var keyLock = LockPool.GetOrCreate(cacheKey);
 
         await keyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try

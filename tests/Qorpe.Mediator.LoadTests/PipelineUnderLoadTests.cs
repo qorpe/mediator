@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Attributes;
 using Qorpe.Mediator.Behaviors.DependencyInjection;
 using Qorpe.Mediator.DependencyInjection;
 using Qorpe.Mediator.Results;
@@ -59,6 +60,15 @@ public sealed class LoadStreamHandler : IStreamRequestHandler<LoadStreamRequest,
             await Task.Yield();
         }
     }
+}
+
+// Cacheable query for lock pool memory tests
+[Cacheable(60)]
+public sealed record CacheableLoadQuery(int Id) : IQuery<Result<string>>;
+public sealed class CacheableLoadQueryHandler : IQueryHandler<CacheableLoadQuery, Result<string>>
+{
+    public ValueTask<Result<string>> Handle(CacheableLoadQuery request, CancellationToken cancellationToken)
+        => new(Result<string>.Success($"cached-{request.Id}"));
 }
 
 public class PipelineUnderLoadTests
@@ -363,7 +373,46 @@ public class PipelineUnderLoadTests
         await Task.WhenAll(tasks);
     }
 
-    // === 11. GRACEFUL DEGRADATION — MIXED LOAD WITH FAILURES ===
+    // === 11. CACHING BEHAVIOR MEMORY STABILITY WITH HIGH-CARDINALITY KEYS ===
+    [Fact]
+    public async Task CachingBehavior_HighCardinality_Keys_Stable_Memory()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.ClearProviders());
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(PipelineUnderLoadTests).Assembly));
+        services.AddQorpeCaching();
+        services.AddDistributedMemoryCache();
+        using var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        // Warmup
+        for (int i = 0; i < 100; i++)
+        {
+            await mediator.Send(new CacheableLoadQuery(i));
+        }
+
+        GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+        GC.WaitForPendingFinalizers();
+        var memBefore = GC.GetTotalMemory(true);
+
+        // Execute with 10K unique cache keys — previously this would leak semaphores
+        for (int i = 0; i < 10_000; i++)
+        {
+            var result = await mediator.Send(new CacheableLoadQuery(i));
+            result.IsSuccess.Should().BeTrue();
+        }
+
+        GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+        GC.WaitForPendingFinalizers();
+        var memAfter = GC.GetTotalMemory(true);
+
+        var memGrowthMb = (memAfter - memBefore) / (1024.0 * 1024.0);
+        memGrowthMb.Should().BeLessThan(20,
+            "lock pool should not grow unbounded with high-cardinality cache keys");
+    }
+
+    // === 12. GRACEFUL DEGRADATION — MIXED LOAD WITH FAILURES ===
     [Fact]
     public async Task Graceful_Degradation_Mixed_Success_Fail_Cancel()
     {

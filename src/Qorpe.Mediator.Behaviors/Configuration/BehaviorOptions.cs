@@ -83,6 +83,12 @@ public sealed class CachingBehaviorOptions
     public int DefaultDurationSeconds { get; set; } = 300;
 
     /// <summary>
+    /// Gets or sets the maximum number of per-key locks retained for stampede prevention.
+    /// Unused locks are evicted automatically. Default is 10,000.
+    /// </summary>
+    public int MaxLockPoolSize { get; set; } = 10_000;
+
+    /// <summary>
     /// Gets or sets whether caching is enabled.
     /// </summary>
     public bool Enabled { get; set; } = true;
