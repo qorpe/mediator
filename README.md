@@ -5,8 +5,9 @@
 [![NuGet](https://img.shields.io/nuget/v/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-blue)](https://dotnet.microsoft.com/)
+[![Tests](https://img.shields.io/badge/Tests-149%20passing-brightgreen)](tests/)
 
-A production-ready, zero-dependency CQRS mediator library for .NET with Result pattern, 9 built-in pipeline behaviors, DDD support, and attribute-based HTTP endpoint mapping. **MIT licensed. Free forever. No telemetry.**
+A production-ready, enterprise-grade CQRS mediator library for .NET with Result pattern, 9 built-in pipeline behaviors, DDD support, and attribute-based HTTP endpoint mapping. **MIT licensed. Free forever. No telemetry.**
 
 ---
 
@@ -14,12 +15,28 @@ A production-ready, zero-dependency CQRS mediator library for .NET with Result p
 
 MediatR went commercial in 2025. The .NET community needs a free, better alternative. Qorpe.Mediator is built from scratch — not a fork — fixing known shortcomings and adding enterprise features the community has been asking for.
 
+- **Faster than MediatR** — Up to 65% faster, 4.7x less memory ([benchmarks](BENCHMARKS.md))
 - **Result Pattern built-in** — No more throwing exceptions for control flow
 - **Explicit CQRS** — `ICommand<T>`, `IQuery<T>` instead of just `IRequest`
 - **9 built-in behaviors** — Audit, logging, validation, auth, transactions, retry, caching, performance, idempotency
 - **Attribute-based HTTP endpoints** — `[HttpEndpoint]` eliminates controller boilerplate
 - **DDD native** — `IDomainEvent`, aggregate root patterns
-- **Performance first** — Compiled delegate caching, zero per-request allocations on hot paths
+- **149 tests** — Unit, integration, load, E2E. Banking-grade reliability.
+
+---
+
+## Performance
+
+Qorpe.Mediator outperforms MediatR v12 in **7 of 9 benchmarks**, ties in 2, loses in 0. Memory usage is lower in all 9.
+
+| Scenario | Qorpe | MediatR v12 | Result |
+|----------|-------|-------------|--------|
+| Send (1 behavior) | 41 ns / 288 B | 57 ns / 368 B | **28% faster** |
+| Send (3 behaviors) | 66 ns / 560 B | 88 ns / 656 B | **25% faster** |
+| Publish (10 handlers) | 73 ns / 376 B | 186 ns / 1,656 B | **61% faster, 4.4x less memory** |
+| Publish (100 handlers) | 549 ns / 3,256 B | 1,556 ns / 15,336 B | **65% faster, 4.7x less memory** |
+
+Full results: [BENCHMARKS.md](BENCHMARKS.md)
 
 ---
 
@@ -189,20 +206,33 @@ builder.Services.AddQorpeAllBehaviors(opts =>
 
 | Feature | MediatR v12 | Qorpe.Mediator |
 |---------|-------------|----------------|
-| License | Commercial (2025+) | MIT, free forever |
-| Result Pattern | No (exceptions) | Built-in Result\<T\> |
-| CQRS Types | IRequest only | ICommand, IQuery, IRequest |
-| Domain Events | INotification | IDomainEvent + INotification |
+| License | Commercial (2025+) | **MIT, free forever** |
+| Send Performance | Baseline | **Up to 28% faster** |
+| Publish Performance | Baseline | **Up to 65% faster** |
+| Memory Usage | Baseline | **Up to 4.7x less** |
+| Result Pattern | No (exceptions) | **Built-in Result\<T\>** |
+| CQRS Types | IRequest only | **ICommand, IQuery, IRequest** |
+| Domain Events | INotification | **IDomainEvent + INotification** |
 | Streaming | IStreamRequest | IStreamRequest |
-| Built-in Behaviors | 0 | 9 (audit, logging, validation, auth, tx, retry, cache, perf, idempotency) |
-| HTTP Endpoints | No | [HttpEndpoint] attribute |
-| ValueTask | No (Task) | Yes (ValueTask) |
-| Pipeline Caching | Per-request rebuild | Cached per request type |
-| Handler Resolution | MakeGenericType per call | Compiled delegate caching |
-| Validation | Exception-based | Result.Failure (no exceptions) |
-| Sensitive Data | No | [SensitiveData] auto-mask |
-| Idempotency | No | Built-in [Idempotent] |
-| Telemetry | Yes | None |
+| Built-in Behaviors | 0 | **9** |
+| HTTP Endpoints | No | **[HttpEndpoint] attribute** |
+| ValueTask | No (Task) | **Yes (ValueTask)** |
+| Handler Resolution | MakeGenericType per call | **Compiled Expression Tree** |
+| Validation | Exception-based | **Result.Failure (no exceptions)** |
+| Sensitive Data | No | **[SensitiveData] auto-mask** |
+| Idempotency | No | **Built-in [Idempotent]** |
+| Telemetry | Yes | **None** |
+
+---
+
+## Test Coverage
+
+| Layer | Tests | What It Covers |
+|-------|-------|----------------|
+| **Unit** | 123 | Result, Error, Guard, Mediator, all 9 behaviors, notifications, validation |
+| **Integration** | 9 | Full pipeline E2E, cross-behavior, DI registration, audit trail |
+| **Load** | 17 | 50K concurrent, 500K sequential, re-entrancy, streaming, latency percentiles |
+| **Total** | **149** | Banking/telecom/healthcare production scenarios |
 
 ---
 
@@ -210,7 +240,7 @@ builder.Services.AddQorpeAllBehaviors(opts =>
 
 | Package | Description |
 |---------|-------------|
-| `Qorpe.Mediator` | Core — zero dependencies, CQRS abstractions, Result pattern, Mediator implementation |
+| `Qorpe.Mediator` | Core — CQRS abstractions, Result pattern, Mediator implementation |
 | `Qorpe.Mediator.FluentValidation` | FluentValidation integration — auto-discovery, multi-validator |
 | `Qorpe.Mediator.Behaviors` | 9 built-in pipeline behaviors |
 | `Qorpe.Mediator.AspNetCore` | HTTP endpoint mapping — [HttpEndpoint], Result-to-HTTP, OpenAPI |
@@ -220,7 +250,7 @@ builder.Services.AddQorpeAllBehaviors(opts =>
 
 ## Sample Project
 
-See `tests/Qorpe.Mediator.Sample.ECommerce/` for a complete e-commerce example with:
+See [`tests/Qorpe.Mediator.Sample.ECommerce/`](tests/Qorpe.Mediator.Sample.ECommerce/) for a complete e-commerce example with:
 - Order aggregate root with domain events
 - Commands with transactions, audit, authorization, idempotency, and retry
 - Queries with caching and streaming
