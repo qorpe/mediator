@@ -11,7 +11,8 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 
 /// <summary>
 /// Pipeline behavior that prevents duplicate command execution using idempotency keys.
-/// Queries are automatically skipped. Concurrent requests: first executes, second waits.
+/// Queries are automatically skipped. Concurrent requests with the same key are serialized
+/// via per-key locking to prevent duplicate handler execution.
 /// </summary>
 public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -19,7 +20,9 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
     private readonly IIdempotencyStore? _store;
     private readonly ILogger<IdempotencyBehavior<TRequest, TResponse>> _logger;
     private readonly IdempotencyBehaviorOptions _options;
-    private static readonly SemaphoreSlim KeyLock = new(1, 1);
+
+    // Per-key lock pool shared across all IdempotencyBehavior instances
+    private static readonly BoundedLockPool KeyLocks = new();
 
     public IdempotencyBehavior(
         ILogger<IdempotencyBehavior<TRequest, TResponse>> logger,
@@ -69,9 +72,12 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
         var idempotencyKey = GenerateKey(request);
         var window = TimeSpan.FromSeconds(idempotentAttr.WindowSeconds);
 
+        // Per-key lock: concurrent requests with the same idempotency key are serialized
+        var keyLock = KeyLocks.GetOrCreate(idempotencyKey);
+        await keyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // Check if already processed
+            // Check if already processed (inside lock to prevent race conditions)
             if (await _store.ExistsAsync(idempotencyKey, cancellationToken).ConfigureAwait(false))
             {
                 var cached = await _store.GetAsync<TResponse>(idempotencyKey, cancellationToken).ConfigureAwait(false);
@@ -97,6 +103,10 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
             _logger.LogWarning(ex, "Idempotent request {RequestName} failed, not caching", typeof(TRequest).Name);
             await _store.RemoveAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
             throw;
+        }
+        finally
+        {
+            keyLock.Release();
         }
     }
 
