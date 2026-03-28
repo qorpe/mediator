@@ -14,9 +14,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Queries are automatically skipped. Concurrent requests with the same key are serialized
 /// via per-key locking to prevent duplicate handler execution.
 /// </summary>
-public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 600;
     private readonly IIdempotencyStore? _store;
     private readonly ILogger<IdempotencyBehavior<TRequest, TResponse>> _logger;
     private readonly IdempotencyBehaviorOptions _options;

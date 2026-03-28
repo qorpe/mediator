@@ -10,9 +10,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that monitors request execution time using Stopwatch.
 /// Logs warnings for slow requests and critical alerts for very slow requests.
 /// </summary>
-public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 800;
     private readonly ILogger<PerformanceBehavior<TRequest, TResponse>> _logger;
     private readonly PerformanceBehaviorOptions _options;
 

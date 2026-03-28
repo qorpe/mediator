@@ -11,9 +11,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Retries: TimeoutException, HttpRequestException, TaskCanceledException (non-user-cancelled).
 /// Never retries: ValidationException, UnauthorizedAccessException, ArgumentException.
 /// </summary>
-public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 900;
     private readonly ILogger<RetryBehavior<TRequest, TResponse>> _logger;
     private readonly RetryBehaviorOptions _options;
 

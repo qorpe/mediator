@@ -10,9 +10,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that wraps command execution in a transaction.
 /// Automatically skips queries. Supports rollback and nested savepoints.
 /// </summary>
-public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 700;
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ILogger<TransactionBehavior<TRequest, TResponse>> _logger;
     private readonly TransactionBehaviorOptions _options;
