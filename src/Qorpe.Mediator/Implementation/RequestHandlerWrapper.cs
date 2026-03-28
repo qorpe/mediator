@@ -221,7 +221,8 @@ internal abstract class StreamHandlerWrapperBase
 }
 
 /// <summary>
-/// Typed stream handler wrapper. Zero reflection.
+/// Typed stream handler wrapper. Resolves handler and stream pipeline behaviors from DI.
+/// Behaviors wrap the stream creation, enabling pre-stream checks and post-stream operations.
 /// </summary>
 internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerWrapperBase
     where TRequest : IStreamRequest<TResponse>
@@ -235,7 +236,47 @@ internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerW
             throw new HandlerNotFoundException(typeof(TRequest));
         }
 
-        await foreach (var item in handler.Handle((TRequest)request, cancellationToken).ConfigureAwait(false))
+        var typedRequest = (TRequest)request;
+
+        // Resolve stream pipeline behaviors
+        var behaviors = serviceProvider.GetService<IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>>>();
+
+        IAsyncEnumerable<TResponse> stream;
+
+        if (behaviors is null)
+        {
+            stream = handler.Handle(typedRequest, cancellationToken);
+        }
+        else
+        {
+            // Materialize behaviors
+            var behaviorArray = behaviors is IStreamPipelineBehavior<TRequest, TResponse>[] arr
+                ? arr
+                : behaviors is ICollection<IStreamPipelineBehavior<TRequest, TResponse>> col
+                    ? col.ToArray()
+                    : behaviors.ToArray();
+
+            if (behaviorArray.Length == 0)
+            {
+                stream = handler.Handle(typedRequest, cancellationToken);
+            }
+            else
+            {
+                // Build pipeline chain — innermost is the handler
+                StreamHandlerDelegate<TResponse> next = () => handler.Handle(typedRequest, cancellationToken);
+
+                for (int i = behaviorArray.Length - 1; i >= 0; i--)
+                {
+                    var behavior = behaviorArray[i];
+                    var currentNext = next;
+                    next = () => behavior.Handle(typedRequest, currentNext, cancellationToken);
+                }
+
+                stream = next();
+            }
+        }
+
+        await foreach (var item in stream.ConfigureAwait(false))
         {
             yield return item;
         }
