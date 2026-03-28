@@ -159,7 +159,16 @@ public static class EndpointMapper
 
             if (context.Request.Method == "GET")
             {
-                request = BindFromQueryAndRoute(context, requestType);
+                var (boundRequest, bindingErrors) = BindFromQueryAndRoute(context, requestType);
+                if (bindingErrors.Count > 0)
+                {
+                    return Microsoft.AspNetCore.Http.Results.Problem(
+                        statusCode: StatusCodes.Status400BadRequest,
+                        title: "Invalid Query Parameters",
+                        detail: string.Join("; ", bindingErrors),
+                        extensions: new Dictionary<string, object?> { ["errors"] = bindingErrors });
+                }
+                request = boundRequest;
             }
             else
             {
@@ -220,10 +229,11 @@ public static class EndpointMapper
         return Microsoft.AspNetCore.Http.Results.Ok(response);
     }
 
-    private static object BindFromQueryAndRoute(HttpContext context, Type requestType)
+    private static (object Instance, List<string> Errors) BindFromQueryAndRoute(HttpContext context, Type requestType)
     {
         var instance = Activator.CreateInstance(requestType)!;
         var properties = requestType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        var errors = new List<string>();
 
         for (int i = 0; i < properties.Length; i++)
         {
@@ -242,10 +252,14 @@ public static class EndpointMapper
                 {
                     prop.SetValue(instance, converted);
                 }
+                else
+                {
+                    errors.Add($"Parameter '{prop.Name}' has invalid value '{value}' for type '{prop.PropertyType.Name}'.");
+                }
             }
         }
 
-        return instance;
+        return (instance, errors);
     }
 
     private static void BindRouteParameters(HttpContext context, object request, Type requestType)
