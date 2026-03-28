@@ -1,6 +1,8 @@
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Attributes;
 using Qorpe.Mediator.Implementation;
 
 namespace Qorpe.Mediator.DependencyInjection;
@@ -72,7 +74,10 @@ public static class ServiceCollectionExtensions
             for (int i = 0; i < registrations.Count; i++)
             {
                 var reg = registrations[i];
-                var descriptor = new ServiceDescriptor(reg.ServiceType, reg.ImplementationType, options.HandlerLifetime);
+                // Check for per-handler lifetime override via [HandlerLifetime] attribute
+                var lifetimeAttr = reg.ImplementationType.GetCustomAttribute<HandlerLifetimeAttribute>();
+                var lifetime = lifetimeAttr?.Lifetime ?? options.HandlerLifetime;
+                var descriptor = new ServiceDescriptor(reg.ServiceType, reg.ImplementationType, lifetime);
                 services.TryAdd(descriptor);
             }
 
