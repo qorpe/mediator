@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Attributes;
 using Qorpe.Mediator.Behaviors.Configuration;
 
 namespace Qorpe.Mediator.Behaviors.Behaviors;
@@ -52,24 +53,34 @@ public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior
 
         var requestName = typeof(TRequest).Name;
 
-        // Over 30 seconds — critical
+        // Check per-request attribute override, fall back to global options
+        var thresholdAttr = typeof(TRequest).GetCustomAttributes(typeof(PerformanceThresholdAttribute), true)
+            as PerformanceThresholdAttribute[];
+        var warningMs = thresholdAttr is { Length: > 0 } && thresholdAttr[0].WarningMs > 0
+            ? thresholdAttr[0].WarningMs
+            : _options.WarningThresholdMs;
+        var criticalMs = thresholdAttr is { Length: > 0 } && thresholdAttr[0].CriticalMs > 0
+            ? thresholdAttr[0].CriticalMs
+            : _options.CriticalThresholdMs;
+
+        // Over 30 seconds — always critical regardless of thresholds
         if (elapsedMs > 30_000)
         {
             _logger.LogCritical(
                 "CRITICAL: {RequestName} took {ElapsedMs}ms (over 30s threshold)",
                 requestName, elapsedMs);
         }
-        else if (elapsedMs > _options.CriticalThresholdMs)
+        else if (elapsedMs > criticalMs)
         {
             _logger.LogError(
                 "SLOW: {RequestName} took {ElapsedMs}ms (critical threshold: {Threshold}ms)",
-                requestName, elapsedMs, _options.CriticalThresholdMs);
+                requestName, elapsedMs, criticalMs);
         }
-        else if (elapsedMs > _options.WarningThresholdMs)
+        else if (elapsedMs > warningMs)
         {
             _logger.LogWarning(
                 "SLOW: {RequestName} took {ElapsedMs}ms (warning threshold: {Threshold}ms)",
-                requestName, elapsedMs, _options.WarningThresholdMs);
+                requestName, elapsedMs, warningMs);
         }
 
         return response;
