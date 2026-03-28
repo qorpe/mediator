@@ -118,4 +118,44 @@ public class ParallelNotificationPublisherTests
 
         await act.Should().ThrowAsync<TimeoutException>();
     }
+
+    [Fact]
+    public async Task Publish_WithTimeout_ShouldPreserveHandlerExceptions()
+    {
+        var publisher = new ParallelNotificationPublisher(TimeSpan.FromMilliseconds(100));
+
+        var executors = new[]
+        {
+            // Handler that fails immediately
+            CreateExecutor((_, _) => throw new InvalidOperationException("handler failed")),
+            // Handler that runs forever (causes timeout)
+            CreateExecutor(async (_, ct) => await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None))
+        };
+
+        var act = async () => await publisher.Publish(executors,
+            Substitute.For<INotification>(), CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<AggregateException>();
+        ex.Which.InnerExceptions.Should().Contain(e => e is TimeoutException);
+        ex.Which.InnerExceptions.Should().Contain(e => e is InvalidOperationException && e.Message == "handler failed");
+    }
+
+    [Fact]
+    public async Task Publish_WithTimeout_NoHandlerFailures_ShouldThrowPlainTimeout()
+    {
+        var publisher = new ParallelNotificationPublisher(TimeSpan.FromMilliseconds(50));
+
+        // Use 2 handlers to bypass single-handler optimization
+        var executors = new[]
+        {
+            CreateExecutor(async (_, ct) => await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None)),
+            CreateExecutor(async (_, ct) => await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None))
+        };
+
+        var act = async () => await publisher.Publish(executors,
+            Substitute.For<INotification>(), CancellationToken.None);
+
+        // No handler failures — should be plain TimeoutException, not AggregateException
+        await act.Should().ThrowAsync<TimeoutException>();
+    }
 }
