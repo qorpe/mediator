@@ -37,6 +37,14 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             throw new HandlerNotFoundException(typeof(TRequest));
         }
 
+        // Resolve pre/post processors
+        var preProcessors = serviceProvider.GetService<IEnumerable<IRequestPreProcessor<TRequest>>>();
+        var postProcessors = serviceProvider.GetService<IEnumerable<IRequestPostProcessor<TRequest, TResponse>>>();
+
+        // Build innermost delegate: pre-processors → handler → post-processors
+        RequestHandlerDelegate<TResponse> handlerDelegate = BuildHandlerDelegate(
+            request, handler, preProcessors, postProcessors, cancellationToken);
+
         // Resolve behaviors — fully typed DI call
         // MS.Extensions.DI returns a cached empty enumerable for unregistered IEnumerable<T>,
         // so this call is fast (~5ns) even when no behaviors exist.
@@ -45,7 +53,7 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         // Fast path: no behaviors registered
         if (behaviors is null)
         {
-            return handler.Handle(request, cancellationToken);
+            return handlerDelegate();
         }
 
         // Materialize to array — use ICollection fast path when available
@@ -62,7 +70,7 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             behaviorCount = col.Count;
             if (behaviorCount == 0)
             {
-                return handler.Handle(request, cancellationToken);
+                return handlerDelegate();
             }
             behaviorArray = new IPipelineBehavior<TRequest, TResponse>[behaviorCount];
             col.CopyTo(behaviorArray, 0);
@@ -77,11 +85,11 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
         if (behaviorCount == 0)
         {
-            return handler.Handle(request, cancellationToken);
+            return handlerDelegate();
         }
 
         // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] boxing
-        RequestHandlerDelegate<TResponse> next = () => handler.Handle(request, cancellationToken);
+        RequestHandlerDelegate<TResponse> next = handlerDelegate;
 
         for (int i = behaviorCount - 1; i >= 0; i--)
         {
@@ -91,6 +99,50 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         }
 
         return next();
+    }
+
+    private static RequestHandlerDelegate<TResponse> BuildHandlerDelegate(
+        TRequest request,
+        IRequestHandler<TRequest, TResponse> handler,
+        IEnumerable<IRequestPreProcessor<TRequest>>? preProcessors,
+        IEnumerable<IRequestPostProcessor<TRequest, TResponse>>? postProcessors,
+        CancellationToken cancellationToken)
+    {
+        var hasPreProcessors = preProcessors is not null && preProcessors.Any();
+        var hasPostProcessors = postProcessors is not null && postProcessors.Any();
+
+        // Fast path: no processors — direct handler call
+        if (!hasPreProcessors && !hasPostProcessors)
+        {
+            return () => handler.Handle(request, cancellationToken);
+        }
+
+        // Wrap handler with pre/post processor execution
+        return async () =>
+        {
+            // Execute pre-processors
+            if (hasPreProcessors)
+            {
+                foreach (var preProcessor in preProcessors!)
+                {
+                    await preProcessor.Process(request, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Execute handler
+            var response = await handler.Handle(request, cancellationToken).ConfigureAwait(false);
+
+            // Execute post-processors
+            if (hasPostProcessors)
+            {
+                foreach (var postProcessor in postProcessors!)
+                {
+                    await postProcessor.Process(request, response, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return response;
+        };
     }
 }
 
