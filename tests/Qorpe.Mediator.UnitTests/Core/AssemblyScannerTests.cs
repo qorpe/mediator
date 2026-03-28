@@ -49,6 +49,73 @@ public class AssemblyScannerDuplicateDetectionTests
 // that scan the unit test assembly. Duplicate detection is tested via the
 // load test assembly (multiple notification handlers) and exception validation.
 
+public class RegistrationEdgeCaseTests
+{
+    [Fact]
+    public void AddQorpeMediator_CalledTwice_ShouldNotThrow()
+    {
+        var services = new ServiceCollection();
+
+        var act = () =>
+        {
+            services.AddQorpeMediator(cfg =>
+                cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+            services.AddQorpeMediator(cfg =>
+                cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        };
+
+        act.Should().NotThrow("TryAdd should silently skip duplicate registrations");
+    }
+
+    [Fact]
+    public void AddQorpeMediator_CalledTwice_ShouldResolveMediator()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetService<IMediator>();
+
+        mediator.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Handler_Resolved_After_Double_Registration_ShouldWork()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(new TestCommand("test"));
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ISender_And_IPublisher_ShouldResolve()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        var sp = services.BuildServiceProvider();
+
+        var mediator = sp.GetRequiredService<IMediator>();
+        var sender = sp.GetRequiredService<ISender>();
+        var publisher = sp.GetRequiredService<IPublisher>();
+
+        mediator.Should().NotBeNull();
+        sender.Should().NotBeNull();
+        publisher.Should().NotBeNull();
+    }
+}
+
 public class StartupValidationTests
 {
     [Fact]
