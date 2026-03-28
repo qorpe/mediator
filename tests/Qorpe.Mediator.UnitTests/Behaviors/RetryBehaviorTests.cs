@@ -151,4 +151,52 @@ public class RetryBehaviorTests
         var result = await behavior.Handle(new RetryableCommand("data"), next, CancellationToken.None);
         result.IsSuccess.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Should_Log_Success_Attempt_After_Retry()
+    {
+        var behavior = new RetryBehavior<RetryableCommand, Result>(_logger, _options);
+        var callCount = 0;
+
+        RequestHandlerDelegate<Result> next = () =>
+        {
+            callCount++;
+            if (callCount < 2)
+                throw new TimeoutException("transient");
+            return new ValueTask<Result>(Result.Success());
+        };
+
+        var result = await behavior.Handle(new RetryableCommand("data"), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        callCount.Should().Be(2, "should succeed on second attempt");
+
+        // Verify the success log was emitted (attempt 2/3)
+        _logger.Received().Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("succeeded on attempt")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task Should_Not_Log_Success_Attempt_On_First_Try()
+    {
+        var behavior = new RetryBehavior<RetryableCommand, Result>(_logger, _options);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        var result = await behavior.Handle(new RetryableCommand("data"), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        // Should NOT log success attempt when first try succeeds
+        _logger.DidNotReceive().Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("succeeded on attempt")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
 }
