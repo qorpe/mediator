@@ -61,6 +61,12 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         }
     }
 
+    private static readonly JsonSerializerOptions SafeSerializerOptions = new()
+    {
+        MaxDepth = 32,
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+    };
+
     private string SafeSerialize(TRequest request)
     {
         try
@@ -91,7 +97,7 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
                 }
             }
 
-            var json = JsonSerializer.Serialize(dict);
+            var json = JsonSerializer.Serialize(dict, SafeSerializerOptions);
             if (json.Length > _options.MaxSerializedLength)
             {
                 return json[.._options.MaxSerializedLength] + "...(truncated)";
@@ -99,8 +105,9 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
             return json;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Request serialization failed for {RequestName}, logging will be incomplete", typeof(TRequest).Name);
             return "<serialization failed>";
         }
     }
