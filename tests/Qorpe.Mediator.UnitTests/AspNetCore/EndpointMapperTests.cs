@@ -75,4 +75,25 @@ public class EndpointMapperConvertValueTests
         var result = InvokeConvertValue("true", typeof(bool));
         result.Should().Be(true);
     }
+
+    [Fact]
+    public void ConvertValue_InvalidInt_ShouldReturnNull()
+    {
+        var result = InvokeConvertValue("abc", typeof(int));
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConvertValue_InvalidGuid_ShouldReturnNull()
+    {
+        var result = InvokeConvertValue("not-a-guid", typeof(Guid));
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConvertValue_InvalidEnum_ShouldReturnNull()
+    {
+        var result = InvokeConvertValue("nonexistent", typeof(TestStatus));
+        result.Should().BeNull();
+    }
 }
