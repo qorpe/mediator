@@ -1,0 +1,131 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Behaviors;
+using Qorpe.Mediator.Behaviors.Configuration;
+using Qorpe.Mediator.Results;
+using Qorpe.Mediator.UnitTests.Helpers;
+
+namespace Qorpe.Mediator.UnitTests.Behaviors;
+
+public class IdempotencyBehaviorTests
+{
+    private readonly ILogger<IdempotencyBehavior<IdempotentCommand, Result>> _logger =
+        Substitute.For<ILogger<IdempotencyBehavior<IdempotentCommand, Result>>>();
+    private readonly IOptions<IdempotencyBehaviorOptions> _options =
+        Options.Create(new IdempotencyBehaviorOptions());
+
+    [Fact]
+    public async Task Should_Execute_First_Time_And_Cache()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        var result = await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        await store.Received(1).SetAsync(
+            Arg.Any<string>(), Arg.Any<Result>(),
+            Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_Return_Cached_On_Duplicate()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        store.GetAsync<Result>(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store);
+        var handlerCalled = false;
+
+        RequestHandlerDelegate<Result> next = () =>
+        {
+            handlerCalled = true;
+            return new ValueTask<Result>(Result.Success());
+        };
+
+        var result = await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        handlerCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Should_Remove_Cache_On_Handler_Failure()
+    {
+        var store = Substitute.For<IIdempotencyStore>();
+        store.ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store);
+
+        RequestHandlerDelegate<Result> next = () => throw new InvalidOperationException("fail");
+
+        var act = async () => await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        await store.Received(1).RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_Skip_Queries()
+    {
+        var queryLogger = Substitute.For<ILogger<IdempotencyBehavior<TestQuery, Result<string>>>>();
+        var store = Substitute.For<IIdempotencyStore>();
+        var behavior = new IdempotencyBehavior<TestQuery, Result<string>>(queryLogger, _options, store);
+
+        RequestHandlerDelegate<Result<string>> next = () =>
+            new ValueTask<Result<string>>(Result<string>.Success("ok"));
+
+        await behavior.Handle(new TestQuery(1), next, CancellationToken.None);
+        await store.DidNotReceive().ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_Execute_Normally_When_Store_Down()
+    {
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store: null);
+        var called = false;
+
+        RequestHandlerDelegate<Result> next = () =>
+        {
+            called = true;
+            return new ValueTask<Result>(Result.Success());
+        };
+
+        var result = await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
+        called.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Should_Skip_When_No_Idempotent_Attribute()
+    {
+        var cmdLogger = Substitute.For<ILogger<IdempotencyBehavior<TestCommand, Result>>>();
+        var store = Substitute.For<IIdempotencyStore>();
+        var behavior = new IdempotencyBehavior<TestCommand, Result>(cmdLogger, _options, store);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        await behavior.Handle(new TestCommand("test"), next, CancellationToken.None);
+        await store.DidNotReceive().ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_Skip_When_Disabled()
+    {
+        var opts = Options.Create(new IdempotencyBehaviorOptions { Enabled = false });
+        var store = Substitute.For<IIdempotencyStore>();
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, opts, store);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
+        await store.DidNotReceive().ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+}

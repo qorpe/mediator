@@ -10,6 +10,7 @@
     <ProjectReference Include="../../src/Qorpe.Mediator.Behaviors/Qorpe.Mediator.Behaviors.csproj" />
     <ProjectReference Include="../../src/Qorpe.Mediator.FluentValidation/Qorpe.Mediator.FluentValidation.csproj" />
     <ProjectReference Include="../../src/Qorpe.Mediator.AspNetCore/Qorpe.Mediator.AspNetCore.csproj" />
+    <ProjectReference Include="../Qorpe.Mediator.Sample.ECommerce/Qorpe.Mediator.Sample.ECommerce.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +22,7 @@
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
   </ItemGroup>
