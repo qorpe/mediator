@@ -19,7 +19,7 @@ public sealed record GetOrdersForUserQuery : IQuery<Result<List<Order>>>
     public string UserId { get; init; } = string.Empty;
 }
 
-[HttpEndpoint("GET", "/api/orders/search", Summary = "Search orders", Tags = new[] { "Orders" })]
+// Streaming requests use CreateStream() directly, not HTTP endpoints
 public sealed record SearchOrdersQuery : IStreamRequest<Order>
 {
     public string? Status { get; init; }

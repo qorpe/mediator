@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Collections.Concurrent;
 using Qorpe.Mediator.Abstractions;
 using Qorpe.Mediator.Exceptions;
@@ -8,10 +7,12 @@ namespace Qorpe.Mediator.Implementation;
 /// <summary>
 /// Builds and caches the pipeline chain for each request type.
 /// One pipeline per request type — built once, reused forever.
+/// All type computations (MakeGenericType) are cached on first call.
 /// </summary>
 internal static class RequestPipeline
 {
-    private static readonly ConcurrentDictionary<Type, object> PipelineCache = new();
+    // Cache: RequestType -> (handlerInterfaceType, behaviorInterfaceType, enumerableBehaviorType)
+    private static readonly ConcurrentDictionary<Type, PipelineTypeInfo> TypeInfoCache = new();
 
     /// <summary>
     /// Executes the pipeline for the given request.
@@ -25,85 +26,105 @@ internal static class RequestPipeline
         cancellationToken.ThrowIfCancellationRequested();
 
         var requestType = request.GetType();
-        var handlerDelegate = HandlerResolver.ResolveHandler<TResponse>(requestType, serviceProvider);
 
-        // Check handler exists
-        var handlerInterfaceType = typeof(IRequestHandler<,>).MakeGenericType(requestType, typeof(TResponse));
-        var handler = serviceProvider.GetService(handlerInterfaceType);
+        // Get or build cached type info (MakeGenericType happens only once per request type)
+        var typeInfo = TypeInfoCache.GetOrAdd(requestType, static type =>
+        {
+            var responseType = FindResponseType(type);
+            var handlerType = typeof(IRequestHandler<,>).MakeGenericType(type, responseType);
+            var behaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(type, responseType);
+            var enumerableBehaviorType = typeof(IEnumerable<>).MakeGenericType(behaviorType);
+            return new PipelineTypeInfo(handlerType, behaviorType, enumerableBehaviorType);
+        });
+
+        // Resolve handler — single GetService call
+        var handler = serviceProvider.GetService(typeInfo.HandlerInterfaceType);
         if (handler is null)
         {
             throw new HandlerNotFoundException(requestType);
         }
 
-        // Get behaviors
-        var behaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(requestType, typeof(TResponse));
-        var behaviors = GetBehaviors(serviceProvider, behaviorType);
+        // Get compiled handler delegate (cached)
+        var handlerDelegate = HandlerResolver.ResolveHandler<TResponse>(requestType, serviceProvider);
 
-        if (behaviors.Length == 0)
+        // Get behaviors — one GetService call
+        var behaviorsEnumerable = serviceProvider.GetService(typeInfo.EnumerableBehaviorType) as System.Collections.IEnumerable;
+
+        // Fast path: no behaviors
+        if (behaviorsEnumerable is null)
         {
-            // No behaviors — direct handler call, zero overhead
+            return handlerDelegate(serviceProvider, request, cancellationToken);
+        }
+
+        // Collect behaviors without List allocation when possible
+        object[]? behaviors = null;
+        int count = 0;
+
+        foreach (var b in behaviorsEnumerable)
+        {
+            if (b is not null)
+            {
+                behaviors ??= new object[4];
+                if (count >= behaviors.Length)
+                {
+                    var newArr = new object[behaviors.Length * 2];
+                    Array.Copy(behaviors, newArr, count);
+                    behaviors = newArr;
+                }
+                behaviors[count++] = b;
+            }
+        }
+
+        if (count == 0)
+        {
             return handlerDelegate(serviceProvider, request, cancellationToken);
         }
 
         // Build the pipeline chain from inside out
         RequestHandlerDelegate<TResponse> next = () => handlerDelegate(serviceProvider, request, cancellationToken);
 
-        // Iterate behaviors in reverse order to build the chain
-        for (int i = behaviors.Length - 1; i >= 0; i--)
-        {
-            var behavior = behaviors[i];
-            var currentNext = next; // Capture for closure
+        // Get the cached behavior invoker (MethodInfo.Invoke cached per type)
+        var invoker = GetBehaviorInvoker<TResponse>(requestType);
 
-            // Use the cached invoke delegate
-            var invoker = GetBehaviorInvoker<TResponse>(requestType, behaviorType);
-            var capturedBehavior = behavior;
+        for (int i = count - 1; i >= 0; i--)
+        {
+            var capturedBehavior = behaviors![i];
+            var currentNext = next;
             next = () => invoker(capturedBehavior, request, currentNext, cancellationToken);
         }
 
         return next();
     }
 
-    private static object[] GetBehaviors(IServiceProvider serviceProvider, Type behaviorType)
+    private static Type FindResponseType(Type requestType)
     {
-        // Use IEnumerable<IPipelineBehavior<TRequest, TResponse>> from DI
-        var enumerableType = typeof(IEnumerable<>).MakeGenericType(behaviorType);
-        var behaviors = serviceProvider.GetService(enumerableType) as System.Collections.IEnumerable;
-
-        if (behaviors is null)
+        var interfaces = requestType.GetInterfaces();
+        for (int i = 0; i < interfaces.Length; i++)
         {
-            return Array.Empty<object>();
-        }
-
-        var list = new List<object>();
-        foreach (var b in behaviors)
-        {
-            if (b is not null)
+            var iface = interfaces[i];
+            if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IRequest<>))
             {
-                list.Add(b);
+                return iface.GetGenericArguments()[0];
             }
         }
-
-        return list.ToArray();
+        throw new HandlerNotFoundException(requestType);
     }
 
-    private static readonly ConcurrentDictionary<(Type, Type), object> BehaviorInvokerCache = new();
+    private static readonly ConcurrentDictionary<Type, object> BehaviorInvokerCache = new();
 
     private static Func<object, object, RequestHandlerDelegate<TResponse>, CancellationToken, ValueTask<TResponse>>
-        GetBehaviorInvoker<TResponse>(Type requestType, Type behaviorType)
+        GetBehaviorInvoker<TResponse>(Type requestType)
     {
-        var key = (requestType, typeof(TResponse));
-        var invoker = BehaviorInvokerCache.GetOrAdd(key, static k =>
+        var invoker = BehaviorInvokerCache.GetOrAdd(requestType, static reqType =>
         {
-            var (reqType, respType) = k;
-            var pipelineBehaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(reqType, respType);
+            var responseType = FindResponseType(reqType);
+            var pipelineBehaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(reqType, responseType);
             var handleMethod = pipelineBehaviorType.GetMethod("Handle")!;
 
             return new Func<object, object, RequestHandlerDelegate<TResponse>, CancellationToken, ValueTask<TResponse>>(
                 (behavior, request, nextDelegate, ct) =>
                 {
-                    // Dynamic invoke through the interface
-                    var typedBehavior = behavior;
-                    var result = handleMethod.Invoke(typedBehavior, new object[] { request, nextDelegate, ct });
+                    var result = handleMethod.Invoke(behavior, new object[] { request, nextDelegate, ct });
                     return (ValueTask<TResponse>)result!;
                 });
         });
@@ -116,7 +137,21 @@ internal static class RequestPipeline
     /// </summary>
     internal static void ClearCache()
     {
-        PipelineCache.Clear();
+        TypeInfoCache.Clear();
         BehaviorInvokerCache.Clear();
+    }
+
+    private sealed class PipelineTypeInfo
+    {
+        public Type HandlerInterfaceType { get; }
+        public Type BehaviorInterfaceType { get; }
+        public Type EnumerableBehaviorType { get; }
+
+        public PipelineTypeInfo(Type handlerInterfaceType, Type behaviorInterfaceType, Type enumerableBehaviorType)
+        {
+            HandlerInterfaceType = handlerInterfaceType;
+            BehaviorInterfaceType = behaviorInterfaceType;
+            EnumerableBehaviorType = enumerableBehaviorType;
+        }
     }
 }
