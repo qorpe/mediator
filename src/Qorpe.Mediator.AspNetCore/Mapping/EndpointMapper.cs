@@ -237,14 +237,10 @@ public static class EndpointMapper
 
             if (value is not null)
             {
-                try
+                var converted = ConvertValue(value, prop.PropertyType);
+                if (converted is not null)
                 {
-                    var converted = Convert.ChangeType(value, Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType, System.Globalization.CultureInfo.InvariantCulture);
                     prop.SetValue(instance, converted);
-                }
-                catch
-                {
-                    // Skip invalid conversions
                 }
             }
         }
@@ -262,18 +258,40 @@ public static class EndpointMapper
 
             if (context.Request.RouteValues.TryGetValue(prop.Name, out var routeVal) && routeVal is not null)
             {
-                try
+                var converted = ConvertValue(routeVal.ToString()!, prop.PropertyType);
+                if (converted is not null)
                 {
-                    var converted = Convert.ChangeType(routeVal.ToString(),
-                        Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType,
-                        System.Globalization.CultureInfo.InvariantCulture);
                     prop.SetValue(request, converted);
                 }
-                catch
-                {
-                    // Skip
-                }
             }
+        }
+    }
+
+    private static object? ConvertValue(string value, Type targetType)
+    {
+        try
+        {
+            var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+            // Enum: case-insensitive parsing matching ASP.NET Core conventions
+            if (underlyingType.IsEnum)
+            {
+                return Enum.TryParse(underlyingType, value, ignoreCase: true, out var enumResult)
+                    ? enumResult
+                    : null;
+            }
+
+            // Guid: special handling (Convert.ChangeType doesn't support Guid)
+            if (underlyingType == typeof(Guid))
+            {
+                return Guid.TryParse(value, out var guidResult) ? guidResult : null;
+            }
+
+            return Convert.ChangeType(value, underlyingType, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch
+        {
+            return null;
         }
     }
 
