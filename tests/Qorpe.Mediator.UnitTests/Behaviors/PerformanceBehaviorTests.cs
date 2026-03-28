@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Attributes;
 using Qorpe.Mediator.Behaviors.Behaviors;
 using Qorpe.Mediator.Behaviors.Configuration;
 using Qorpe.Mediator.Results;
@@ -62,4 +63,60 @@ public class PerformanceBehaviorTests
         result.IsSuccess.Should().BeTrue();
         // Logger will have been called with Warning level
     }
+
+    [Fact]
+    public async Task Should_Use_Attribute_Thresholds_Over_Global_Options()
+    {
+        var logger = Substitute.For<ILogger<PerformanceBehavior<CustomThresholdCommand, Result>>>();
+        // Global: 500ms warning — but attribute says 1ms warning
+        var opts = Options.Create(new PerformanceBehaviorOptions { WarningThresholdMs = 500, CriticalThresholdMs = 5000 });
+        var behavior = new PerformanceBehavior<CustomThresholdCommand, Result>(logger, opts);
+
+        RequestHandlerDelegate<Result> next = async () =>
+        {
+            await Task.Delay(10); // 10ms — above attribute warning (1ms) but below global (500ms)
+            return Result.Success();
+        };
+
+        var result = await behavior.Handle(new CustomThresholdCommand("test"), next, CancellationToken.None);
+        result.IsSuccess.Should().BeTrue();
+
+        // Should have logged at Warning level using attribute threshold (1ms), not global (500ms)
+        logger.Received().Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("SLOW")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task Should_Fall_Back_To_Global_When_No_Attribute()
+    {
+        var logger = Substitute.For<ILogger<PerformanceBehavior<TestCommand, Result>>>();
+        var opts = Options.Create(new PerformanceBehaviorOptions { WarningThresholdMs = 500 });
+        var behavior = new PerformanceBehavior<TestCommand, Result>(logger, opts);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        var result = await behavior.Handle(new TestCommand("test"), next, CancellationToken.None);
+        result.IsSuccess.Should().BeTrue();
+
+        // Fast execution — should NOT warn (global threshold is 500ms)
+        logger.DidNotReceive().Log(
+            LogLevel.Warning,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("SLOW")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+}
+
+[PerformanceThreshold(WarningMs = 1, CriticalMs = 100)]
+public sealed record CustomThresholdCommand(string Data) : ICommand<Result>;
+
+public sealed class CustomThresholdCommandHandler : ICommandHandler<CustomThresholdCommand>
+{
+    public ValueTask<Result> Handle(CustomThresholdCommand request, CancellationToken cancellationToken)
+        => new(Result.Success());
 }
