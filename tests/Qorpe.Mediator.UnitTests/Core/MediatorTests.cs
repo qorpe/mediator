@@ -245,6 +245,132 @@ internal sealed class BlockingStreamBehavior<TRequest, TResponse> : IStreamPipel
     }
 }
 
+public class MediatorPrePostProcessorTests
+{
+    [Fact]
+    public async Task Send_WithPreProcessor_ShouldExecuteBeforeHandler()
+    {
+        var executionOrder = new List<string>();
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddTransient<IRequestPreProcessor<TestCommand>>(
+            _ => new TrackingPreProcessor<TestCommand>(executionOrder, "pre"));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        await mediator.Send(new TestCommand("test"));
+
+        executionOrder.Should().Contain("pre");
+    }
+
+    [Fact]
+    public async Task Send_WithPostProcessor_ShouldExecuteAfterHandler()
+    {
+        var executionOrder = new List<string>();
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddTransient<IRequestPostProcessor<TestCommand, Result>>(
+            _ => new TrackingPostProcessor<TestCommand, Result>(executionOrder, "post"));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        await mediator.Send(new TestCommand("test"));
+
+        executionOrder.Should().Contain("post");
+    }
+
+    [Fact]
+    public async Task Send_WithBothProcessors_ShouldExecuteInCorrectOrder()
+    {
+        var executionOrder = new List<string>();
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddTransient<IRequestPreProcessor<TestCommand>>(
+            _ => new TrackingPreProcessor<TestCommand>(executionOrder, "pre"));
+        services.AddTransient<IRequestPostProcessor<TestCommand, Result>>(
+            _ => new TrackingPostProcessor<TestCommand, Result>(executionOrder, "post"));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        await mediator.Send(new TestCommand("test"));
+
+        executionOrder.Should().ContainInOrder("pre", "post");
+    }
+
+    [Fact]
+    public async Task Send_WithMultiplePreProcessors_ShouldExecuteAll()
+    {
+        var executionOrder = new List<string>();
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddTransient<IRequestPreProcessor<TestCommand>>(
+            _ => new TrackingPreProcessor<TestCommand>(executionOrder, "pre-1"));
+        services.AddTransient<IRequestPreProcessor<TestCommand>>(
+            _ => new TrackingPreProcessor<TestCommand>(executionOrder, "pre-2"));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        await mediator.Send(new TestCommand("test"));
+
+        executionOrder.Should().ContainInOrder("pre-1", "pre-2");
+    }
+
+    [Fact]
+    public async Task Send_WithoutProcessors_ShouldStillWork()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(new TestCommand("test"));
+        result.IsSuccess.Should().BeTrue("backward compatibility must be preserved");
+    }
+}
+
+internal sealed class TrackingPreProcessor<TRequest> : IRequestPreProcessor<TRequest>
+    where TRequest : notnull
+{
+    private readonly List<string> _executionOrder;
+    private readonly string _name;
+
+    public TrackingPreProcessor(List<string> executionOrder, string name)
+    {
+        _executionOrder = executionOrder;
+        _name = name;
+    }
+
+    public ValueTask Process(TRequest request, CancellationToken cancellationToken)
+    {
+        _executionOrder.Add(_name);
+        return ValueTask.CompletedTask;
+    }
+}
+
+internal sealed class TrackingPostProcessor<TRequest, TResponse> : IRequestPostProcessor<TRequest, TResponse>
+    where TRequest : notnull
+{
+    private readonly List<string> _executionOrder;
+    private readonly string _name;
+
+    public TrackingPostProcessor(List<string> executionOrder, string name)
+    {
+        _executionOrder = executionOrder;
+        _name = name;
+    }
+
+    public ValueTask Process(TRequest request, TResponse response, CancellationToken cancellationToken)
+    {
+        _executionOrder.Add(_name);
+        return ValueTask.CompletedTask;
+    }
+}
+
 public class MediatorConcurrencyTests
 {
     [Fact]
