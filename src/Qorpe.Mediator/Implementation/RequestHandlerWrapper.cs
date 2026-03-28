@@ -22,6 +22,10 @@ internal abstract class RequestHandlerWrapperBase
 internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandlerWrapperBase
     where TRequest : IRequest<TResponse>
 {
+    // Tri-state behavior detection cache: 0=unknown, 1=no behaviors, 2=has behaviors
+    // After first call, we know whether behaviors exist and skip the DI resolve entirely
+    private volatile int _behaviorState;
+
     public override async ValueTask<object?> Handle(object request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         var result = await HandleTyped((TRequest)request, serviceProvider, cancellationToken).ConfigureAwait(false);
@@ -30,63 +34,102 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
     public ValueTask<TResponse> HandleTyped(TRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        // Resolve handler — fully typed, no reflection
+        // Resolve handler — fully typed, single DI call
         var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>();
         if (handler is null)
         {
             throw new HandlerNotFoundException(typeof(TRequest));
         }
 
-        // Resolve behaviors — fully typed, no reflection, no MakeGenericType
+        // OPTIMIZATION: After first call, skip behavior DI resolve entirely if no behaviors registered
+        var state = _behaviorState;
+        if (state == 1) // No behaviors — direct handler call, skip DI resolve
+        {
+            return handler.Handle(request, cancellationToken);
+        }
+
+        if (state == 2) // Known to have behaviors — resolve and build pipeline
+        {
+            return ExecuteWithBehaviors(request, handler, serviceProvider, cancellationToken);
+        }
+
+        // First call (state == 0) — detect and cache
+        return DetectAndExecute(request, handler, serviceProvider, cancellationToken);
+    }
+
+    private ValueTask<TResponse> DetectAndExecute(TRequest request, IRequestHandler<TRequest, TResponse> handler,
+        IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
         var behaviors = serviceProvider.GetService<IEnumerable<IPipelineBehavior<TRequest, TResponse>>>();
 
-        // Fast path: no behaviors — direct handler call
+        if (behaviors is null)
+        {
+            _behaviorState = 1; // Cache: no behaviors
+            return handler.Handle(request, cancellationToken);
+        }
+
+        // Count behaviors
+        int behaviorCount = 0;
+        if (behaviors is ICollection<IPipelineBehavior<TRequest, TResponse>> col)
+        {
+            behaviorCount = col.Count;
+        }
+        else
+        {
+            foreach (var _ in behaviors)
+            {
+                behaviorCount++;
+                break; // Just need to know if > 0
+            }
+        }
+
+        if (behaviorCount == 0)
+        {
+            _behaviorState = 1; // Cache: no behaviors
+            return handler.Handle(request, cancellationToken);
+        }
+
+        _behaviorState = 2; // Cache: has behaviors
+        return ExecuteWithBehaviors(request, handler, serviceProvider, cancellationToken);
+    }
+
+    private static ValueTask<TResponse> ExecuteWithBehaviors(TRequest request, IRequestHandler<TRequest, TResponse> handler,
+        IServiceProvider serviceProvider, CancellationToken cancellationToken)
+    {
+        var behaviors = serviceProvider.GetService<IEnumerable<IPipelineBehavior<TRequest, TResponse>>>();
         if (behaviors is null)
         {
             return handler.Handle(request, cancellationToken);
         }
 
-        // Materialize behaviors (avoid multiple enumeration)
-        IPipelineBehavior<TRequest, TResponse>[]? behaviorArray = null;
-        int behaviorCount = 0;
-
+        // Materialize to array
+        IPipelineBehavior<TRequest, TResponse>[] behaviorArray;
         if (behaviors is IPipelineBehavior<TRequest, TResponse>[] arr)
         {
             behaviorArray = arr;
-            behaviorCount = arr.Length;
         }
         else if (behaviors is ICollection<IPipelineBehavior<TRequest, TResponse>> col)
         {
-            behaviorCount = col.Count;
-            if (behaviorCount > 0)
-            {
-                behaviorArray = new IPipelineBehavior<TRequest, TResponse>[behaviorCount];
-                col.CopyTo(behaviorArray, 0);
-            }
+            behaviorArray = new IPipelineBehavior<TRequest, TResponse>[col.Count];
+            col.CopyTo(behaviorArray, 0);
         }
         else
         {
-            // Fallback: enumerate once
-            var list = new List<IPipelineBehavior<TRequest, TResponse>>();
-            foreach (var b in behaviors)
-            {
-                list.Add(b);
-            }
+            var list = new List<IPipelineBehavior<TRequest, TResponse>>(behaviors);
             behaviorArray = list.ToArray();
-            behaviorCount = behaviorArray.Length;
         }
 
-        if (behaviorCount == 0)
+        if (behaviorArray.Length == 0)
         {
             return handler.Handle(request, cancellationToken);
         }
 
-        // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] allocation
+        // Build pipeline chain — fully typed, zero reflection
         RequestHandlerDelegate<TResponse> next = () => handler.Handle(request, cancellationToken);
 
-        for (int i = behaviorCount - 1; i >= 0; i--)
+        for (int i = behaviorArray.Length - 1; i >= 0; i--)
         {
-            var behavior = behaviorArray![i];
+            var behavior = behaviorArray[i];
             var currentNext = next;
             next = () => behavior.Handle(request, currentNext, cancellationToken);
         }
@@ -106,18 +149,16 @@ internal abstract class NotificationHandlerWrapperBase
 
 /// <summary>
 /// Typed notification handler wrapper. Zero reflection on the hot path.
-/// Caches a static callback delegate per TNotification to avoid closure allocation.
+/// Uses DIRECT handler invocation — no NotificationHandlerExecutor allocation for sequential path.
+/// Falls back to executor-based path only for custom publishers.
 /// </summary>
 internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHandlerWrapperBase
     where TNotification : INotification
 {
-    // Cached static callback — avoids closure allocation per handler per call
-    private static readonly Func<INotification, CancellationToken, ValueTask>[] EmptyCallbacks = Array.Empty<Func<INotification, CancellationToken, ValueTask>>();
-
     public override ValueTask Handle(INotification notification, IServiceProvider serviceProvider, CancellationToken cancellationToken,
         INotificationPublisher publisher)
     {
-        // Resolve handlers — fully typed, single DI call
+        // Resolve handlers — single typed DI call
         var handlers = serviceProvider.GetService<IEnumerable<INotificationHandler<TNotification>>>();
 
         if (handlers is null)
@@ -125,52 +166,93 @@ internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHa
             return ValueTask.CompletedTask;
         }
 
-        // Fast path: check if ICollection to pre-allocate exact size
-        int capacity;
-        if (handlers is ICollection<INotificationHandler<TNotification>> col)
+        // OPTIMIZATION: For sequential publishers, invoke handlers directly without executor wrappers.
+        // This eliminates NotificationHandlerExecutor + closure allocation entirely.
+        if (publisher is ForeachNotificationPublisher foreachPublisher)
         {
-            capacity = col.Count;
-            if (capacity == 0) return ValueTask.CompletedTask;
-        }
-        else
-        {
-            capacity = 4;
+            return InvokeDirectSequential((TNotification)notification, handlers, cancellationToken);
         }
 
-        var executors = new NotificationHandlerExecutor[capacity];
+        if (publisher is ParallelNotificationPublisher)
+        {
+            return InvokeDirectParallel((TNotification)notification, handlers, cancellationToken);
+        }
+
+        // Fallback: build executors for custom publisher implementations
+        return InvokeViaExecutors(notification, handlers, publisher, cancellationToken);
+    }
+
+    private static async ValueTask InvokeDirectSequential(TNotification notification,
+        IEnumerable<INotificationHandler<TNotification>> handlers, CancellationToken cancellationToken)
+    {
+        // Direct invocation — ZERO allocation per handler, no executors, no closures
+        foreach (var handler in handlers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await handler.Handle(notification, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async ValueTask InvokeDirectParallel(TNotification notification,
+        IEnumerable<INotificationHandler<TNotification>> handlers, CancellationToken cancellationToken)
+    {
+        // Collect tasks for parallel execution
+        Task[]? tasks = null;
         int count = 0;
 
         foreach (var handler in handlers)
         {
+            tasks ??= new Task[4];
+            if (count >= tasks.Length)
+            {
+                var newArr = new Task[tasks.Length * 2];
+                Array.Copy(tasks, newArr, count);
+                tasks = newArr;
+            }
+            tasks[count++] = handler.Handle(notification, cancellationToken).AsTask();
+        }
+
+        if (count == 0) return;
+
+        if (count == 1)
+        {
+            await tasks![0].ConfigureAwait(false);
+            return;
+        }
+
+        if (count < tasks!.Length)
+        {
+            Array.Resize(ref tasks, count);
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    private static ValueTask InvokeViaExecutors(INotification notification,
+        IEnumerable<INotificationHandler<TNotification>> handlers,
+        INotificationPublisher publisher, CancellationToken cancellationToken)
+    {
+        // Build executors for custom publishers
+        NotificationHandlerExecutor[]? executors = null;
+        int count = 0;
+
+        foreach (var handler in handlers)
+        {
+            executors ??= new NotificationHandlerExecutor[4];
             if (count >= executors.Length)
             {
                 var newArr = new NotificationHandlerExecutor[executors.Length * 2];
                 Array.Copy(executors, newArr, count);
                 executors = newArr;
             }
-            // Use a static method reference to avoid closure allocation
             var h = handler;
-            executors[count++] = new NotificationHandlerExecutor(h, CreateCallback(h));
+            executors[count++] = new NotificationHandlerExecutor(h, (n, ct) => h.Handle((TNotification)n, ct));
         }
 
-        if (count == 0)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        // Use ArraySegment-style read if oversized
-        if (count < executors.Length)
-        {
-            Array.Resize(ref executors, count);
-        }
+        if (count == 0) return ValueTask.CompletedTask;
+        if (count < executors!.Length) Array.Resize(ref executors, count);
 
         return publisher.Publish(executors, notification, cancellationToken);
-    }
-
-    private static Func<INotification, CancellationToken, ValueTask> CreateCallback(INotificationHandler<TNotification> handler)
-    {
-        // Single closure per handler — captures only the handler instance
-        return (n, ct) => handler.Handle((TNotification)n, ct);
     }
 }
 
