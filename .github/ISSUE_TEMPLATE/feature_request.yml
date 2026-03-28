@@ -1,0 +1,36 @@
+name: Feature Request
+description: Suggest a new feature for Qorpe.Mediator
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the feature you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      description: Describe the problem this feature would solve.
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: How you imagine the API would look.
+      render: csharp
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Related Package
+      options:
+        - Qorpe.Mediator
+        - Qorpe.Mediator.Behaviors
+        - Qorpe.Mediator.FluentValidation
+        - Qorpe.Mediator.AspNetCore
+        - Qorpe.Mediator.Contracts
+        - New Package
