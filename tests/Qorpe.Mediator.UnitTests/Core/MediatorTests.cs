@@ -62,6 +62,27 @@ public class MediatorSendTests
         var act = async () => await mediator.Send(new TestCommand("test"), cts.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
+
+    [Fact]
+    public void HandlerNotFoundException_Should_Include_Assembly_Registration_Hint()
+    {
+        var ex = new HandlerNotFoundException(typeof(TestCommand));
+
+        ex.Message.Should().Contain("RegisterServicesFromAssembly",
+            "error should hint about assembly registration");
+        ex.Message.Should().Contain(typeof(TestCommand).FullName);
+        ex.RequestType.Should().Be<TestCommand>();
+    }
+
+    [Fact]
+    public void HandlerNotFoundException_WithCount_Should_Include_Registered_Handler_Count()
+    {
+        var ex = new HandlerNotFoundException(typeof(TestCommand), 15);
+
+        ex.Message.Should().Contain("15 handler(s) registered",
+            "error should show how many handlers exist for other types");
+        ex.Message.Should().Contain("RegisterServicesFromAssembly");
+    }
 }
 
 public class MediatorPublishTests
