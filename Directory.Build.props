@@ -9,6 +9,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
   </PropertyGroup>
 
+  <!-- Package metadata -->
   <PropertyGroup>
     <Authors>Qorpe</Authors>
     <Company>Qorpe</Company>
@@ -19,19 +20,29 @@
     <PackageTags>cqrs;mediator;mediatr-alternative;pipeline;command;query;dotnet;clean-architecture;ddd;domain-events;result-pattern</PackageTags>
     <Description>Enterprise-grade CQRS mediator for .NET — Result pattern, pipeline behaviors, DDD-ready. Free forever.</Description>
     <Copyright>Copyright (c) Qorpe 2025</Copyright>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>https://github.com/qorpe/mediator/blob/main/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>
 
+  <!-- Documentation -->
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <!-- NuGet packaging -->
+  <!-- NuGet packaging + SourceLink + Deterministic -->
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
+
+  <!-- SourceLink: enables stepping into source during debugging -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
 
 </Project>
