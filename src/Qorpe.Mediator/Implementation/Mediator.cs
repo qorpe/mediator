@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.DependencyInjection;
 using Qorpe.Mediator.Exceptions;
 
 namespace Qorpe.Mediator.Implementation;
@@ -13,17 +14,22 @@ public sealed class Mediator : IMediator
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly INotificationPublisher _notificationPublisher;
+    private readonly bool _polymorphicNotifications;
 
     // Cache: requestType -> Func that does typed Send without boxing
     private static readonly ConcurrentDictionary<Type, object> SendDelegateCache = new();
 
+    // Cache: notificationType -> base notification types (for polymorphic dispatch)
+    private static readonly ConcurrentDictionary<Type, Type[]> NotificationTypeHierarchyCache = new();
+
     /// <summary>
     /// Initializes a new instance of <see cref="Mediator"/>.
     /// </summary>
-    public Mediator(IServiceProvider serviceProvider, INotificationPublisher notificationPublisher)
+    public Mediator(IServiceProvider serviceProvider, INotificationPublisher notificationPublisher, MediatorOptions options)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _notificationPublisher = notificationPublisher ?? throw new ArgumentNullException(nameof(notificationPublisher));
+        _polymorphicNotifications = options?.EnablePolymorphicNotifications ?? false;
     }
 
     /// <inheritdoc />
@@ -102,6 +108,11 @@ public sealed class Mediator : IMediator
         ArgumentNullException.ThrowIfNull(notification);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (_polymorphicNotifications)
+        {
+            return PublishPolymorphic(notification, typeof(TNotification), cancellationToken);
+        }
+
         var wrapper = HandlerWrapperFactory.GetNotificationWrapper(typeof(TNotification));
         return wrapper.Handle(notification, _serviceProvider, cancellationToken, _notificationPublisher);
     }
@@ -113,8 +124,50 @@ public sealed class Mediator : IMediator
         cancellationToken.ThrowIfCancellationRequested();
 
         var notificationType = notification.GetType();
+
+        if (_polymorphicNotifications)
+        {
+            return PublishPolymorphic(notification, notificationType, cancellationToken);
+        }
+
         var wrapper = HandlerWrapperFactory.GetNotificationWrapper(notificationType);
         return wrapper.Handle(notification, _serviceProvider, cancellationToken, _notificationPublisher);
+    }
+
+    private async ValueTask PublishPolymorphic(INotification notification, Type notificationType, CancellationToken cancellationToken)
+    {
+        var typeHierarchy = NotificationTypeHierarchyCache.GetOrAdd(notificationType, static type =>
+        {
+            var types = new List<Type> { type };
+            var current = type.BaseType;
+
+            while (current is not null && current != typeof(object))
+            {
+                if (typeof(INotification).IsAssignableFrom(current))
+                {
+                    types.Add(current);
+                }
+                current = current.BaseType;
+            }
+
+            // Also check interfaces that implement INotification (excluding INotification itself)
+            foreach (var iface in type.GetInterfaces())
+            {
+                if (iface != typeof(INotification) && typeof(INotification).IsAssignableFrom(iface))
+                {
+                    types.Add(iface);
+                }
+            }
+
+            return types.ToArray();
+        });
+
+        // Publish to each type in the hierarchy
+        for (int i = 0; i < typeHierarchy.Length; i++)
+        {
+            var wrapper = HandlerWrapperFactory.GetNotificationWrapper(typeHierarchy[i]);
+            await wrapper.Handle(notification, _serviceProvider, cancellationToken, _notificationPublisher).ConfigureAwait(false);
+        }
     }
 
     private static Type FindResponseType(Type requestType)

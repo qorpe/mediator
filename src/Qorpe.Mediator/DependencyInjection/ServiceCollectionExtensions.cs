@@ -56,6 +56,9 @@ public static class ServiceCollectionExtensions
         // Register the notification publisher based on strategy
         RegisterNotificationPublisher(services, options);
 
+        // Register options for injection
+        services.TryAddSingleton(options);
+
         // Register the mediator
         services.TryAddTransient<IMediator, Implementation.Mediator>();
         services.TryAddTransient<ISender>(sp => sp.GetRequiredService<IMediator>());
