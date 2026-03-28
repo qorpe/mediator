@@ -50,6 +50,13 @@ public sealed class MediatorOptions
     public TimeSpan ParallelTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
+    /// Gets or sets whether to enable polymorphic notification dispatch.
+    /// When enabled, publishing a derived notification also invokes handlers
+    /// registered for base notification types. Default is false.
+    /// </summary>
+    public bool EnablePolymorphicNotifications { get; set; }
+
+    /// <summary>
     /// Gets or sets the service lifetime for handlers. Defaults to Transient.
     /// </summary>
     public Microsoft.Extensions.DependencyInjection.ServiceLifetime HandlerLifetime { get; set; } =
