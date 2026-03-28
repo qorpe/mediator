@@ -88,6 +88,9 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             return handlerDelegate();
         }
 
+        // Sort by IBehaviorOrder.Order if any behaviors implement it
+        SortBehaviorsByOrder(behaviorArray, behaviorCount);
+
         // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] boxing
         RequestHandlerDelegate<TResponse> next = handlerDelegate;
 
@@ -143,6 +146,38 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
             return response;
         };
+    }
+
+    private static void SortBehaviorsByOrder(IPipelineBehavior<TRequest, TResponse>[] behaviors, int count)
+    {
+        // Only sort if any behavior implements IBehaviorOrder
+        var hasOrdering = false;
+        for (int i = 0; i < count; i++)
+        {
+            if (behaviors[i] is IBehaviorOrder)
+            {
+                hasOrdering = true;
+                break;
+            }
+        }
+
+        if (!hasOrdering) return;
+
+        // Stable sort by Order value (behaviors without IBehaviorOrder get int.MaxValue / 2)
+        Array.Sort(behaviors, 0, count, BehaviorOrderComparer<TRequest, TResponse>.Instance);
+    }
+}
+
+internal sealed class BehaviorOrderComparer<TRequest, TResponse> : IComparer<IPipelineBehavior<TRequest, TResponse>>
+    where TRequest : IRequest<TResponse>
+{
+    public static readonly BehaviorOrderComparer<TRequest, TResponse> Instance = new();
+
+    public int Compare(IPipelineBehavior<TRequest, TResponse>? x, IPipelineBehavior<TRequest, TResponse>? y)
+    {
+        var orderX = x is IBehaviorOrder ox ? ox.Order : int.MaxValue / 2;
+        var orderY = y is IBehaviorOrder oy ? oy.Order : int.MaxValue / 2;
+        return orderX.CompareTo(orderY);
     }
 }
 

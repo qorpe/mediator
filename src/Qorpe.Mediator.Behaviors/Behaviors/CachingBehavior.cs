@@ -13,9 +13,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that caches query responses. Commands are automatically skipped.
 /// Includes stampede prevention using a bounded lock pool with automatic eviction.
 /// </summary>
-public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 1000;
     private readonly IDistributedCache? _cache;
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
     private readonly CachingBehaviorOptions _options;

@@ -11,9 +11,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that enforces authorization requirements.
 /// Checks [Authorize] attributes — all must pass. No context = Unauthorized.
 /// </summary>
-public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 400;
     private readonly IAuthorizationContext? _authContext;
     private readonly ILogger<AuthorizationBehavior<TRequest, TResponse>> _logger;
     private readonly AuthorizationBehaviorOptions _options;

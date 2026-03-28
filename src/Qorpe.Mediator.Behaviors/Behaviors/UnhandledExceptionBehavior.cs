@@ -7,9 +7,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that catches and logs unhandled exceptions.
 /// Acts as a catch-all safety net. Always re-throws after logging.
 /// </summary>
-public sealed class UnhandledExceptionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class UnhandledExceptionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 300;
     private readonly ILogger<UnhandledExceptionBehavior<TRequest, TResponse>> _logger;
 
     public UnhandledExceptionBehavior(ILogger<UnhandledExceptionBehavior<TRequest, TResponse>> logger)

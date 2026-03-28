@@ -13,9 +13,10 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// Pipeline behavior that logs requests and responses with structured logging.
 /// Automatically masks sensitive properties by name and attribute.
 /// </summary>
-public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>, IBehaviorOrder
     where TRequest : IRequest<TResponse>
 {
+    public int Order => 200;
     private readonly ILogger<LoggingBehavior<TRequest, TResponse>> _logger;
     private readonly LoggingBehaviorOptions _options;
 
