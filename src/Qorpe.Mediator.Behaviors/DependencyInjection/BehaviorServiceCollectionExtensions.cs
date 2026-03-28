@@ -142,11 +142,12 @@ public static class BehaviorServiceCollectionExtensions
         else services.Configure<CachingBehaviorOptions>(_ => { });
 
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
         return services;
     }
 
     /// <summary>
-    /// Adds all 9 behaviors in recommended pipeline order.
+    /// Adds all behaviors in recommended pipeline order.
     /// </summary>
     public static IServiceCollection AddQorpeAllBehaviors(
         this IServiceCollection services,
