@@ -1,0 +1,53 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild/
+bld/
+
+## Visual Studio
+.vs/
+*.rsuser
+*.csproj.user
+*.dbmdl
+*.jfm
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+
+## VS Code
+.vscode/
+
+## Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+TestResult.xml
+
+## BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Coverage
+coverage/
+*.coverage
+*.coveragexml

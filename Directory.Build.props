@@ -1,0 +1,29 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>13</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Qorpe</Authors>
+    <Company>Qorpe</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/qorpe/mediator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/qorpe/mediator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>cqrs;mediator;mediatr-alternative;pipeline;command;query;dotnet;clean-architecture;ddd;domain-events;result-pattern</PackageTags>
+    <Description>Enterprise-grade CQRS mediator for .NET — Result pattern, pipeline behaviors, DDD-ready. Free forever.</Description>
+    <Copyright>Copyright (c) Qorpe 2025</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>
