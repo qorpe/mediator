@@ -2,10 +2,11 @@
 
 **Enterprise-Grade CQRS Mediator for .NET**
 
-[![NuGet](https://img.shields.io/nuget/v/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
+[![NuGet](https://img.shields.io/nuget/vpre/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
+[![Build](https://github.com/qorpe/mediator/actions/workflows/ci.yml/badge.svg)](https://github.com/qorpe/mediator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-blue)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/Tests-149%20passing-brightgreen)](tests/)
 
 A production-ready, enterprise-grade CQRS mediator library for .NET with Result pattern, 9 built-in pipeline behaviors, DDD support, and attribute-based HTTP endpoint mapping. **MIT licensed. Free forever. No telemetry.**
 
