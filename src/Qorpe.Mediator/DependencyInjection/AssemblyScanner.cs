@@ -51,12 +51,31 @@ internal static class AssemblyScanner
             for (int j = 0; j < types.Length; j++)
             {
                 var type = types[j];
-                if (type.IsAbstract || type.IsInterface || type.IsGenericTypeDefinition)
+
+                try
                 {
+                    if (type.IsAbstract || type.IsInterface || type.IsGenericTypeDefinition)
+                    {
+                        continue;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Type has unloadable metadata (exotic modifiers, missing dependencies)
                     continue;
                 }
 
-                var interfaces = type.GetInterfaces();
+                Type[] interfaces;
+                try
+                {
+                    interfaces = type.GetInterfaces();
+                }
+                catch (Exception)
+                {
+                    // Interface resolution failed (missing transitive dependency)
+                    continue;
+                }
+
                 for (int k = 0; k < interfaces.Length; k++)
                 {
                     var iface = interfaces[k];
