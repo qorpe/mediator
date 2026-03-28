@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -136,20 +137,32 @@ public static class EndpointMapper
         routeBuilder.WithName(requestType.Name);
     }
 
+    // Cache: requestType -> compiled send delegate (one MakeGenericMethod per type, not per request)
+    private static readonly ConcurrentDictionary<Type, Func<ISender, object, CancellationToken, Task<object?>>> SendDelegateCache = new();
+
     private static Delegate CreateHandler(Type requestType, Type responseType, int successStatusCode)
     {
+        // Build and cache the typed send delegate at registration time (not per-request)
+        var sendDelegate = SendDelegateCache.GetOrAdd(requestType, static (_, respType) =>
+        {
+            var helperMethod = typeof(EndpointMapper)
+                .GetMethod(nameof(InvokeSendTyped), BindingFlags.NonPublic | BindingFlags.Static)!
+                .MakeGenericMethod(respType);
+
+            return (Func<ISender, object, CancellationToken, Task<object?>>)
+                Delegate.CreateDelegate(typeof(Func<ISender, object, CancellationToken, Task<object?>>), helperMethod);
+        }, responseType);
+
         return async (HttpContext context, ISender sender) =>
         {
             object? request;
 
             if (context.Request.Method == "GET")
             {
-                // Bind from query string and route values
                 request = BindFromQueryAndRoute(context, requestType);
             }
             else
             {
-                // Bind from body
                 request = await context.Request.ReadFromJsonAsync(requestType, context.RequestAborted);
             }
 
@@ -159,44 +172,52 @@ public static class EndpointMapper
                     new { error = "Request body cannot be null." });
             }
 
-            // Bind route parameters
             BindRouteParameters(context, request, requestType);
 
-            // Use reflection to call Send<TResponse>
-            var sendMethod = typeof(ISender)
-                .GetMethod(nameof(ISender.Send))!
-                .MakeGenericMethod(responseType);
+            // Cached delegate — zero reflection per request
+            var response = await sendDelegate(sender, request, context.RequestAborted);
 
-            var task = sendMethod.Invoke(sender, new[] { request, context.RequestAborted });
-            var response = await ((dynamic)task!);
-
-            // Map Result to HTTP result
-            if (response is Result result)
-            {
-                return ResultToActionResultMapper.ToHttpResult(result, successStatusCode);
-            }
-
-            // Check if it's Result<T>
-            var responseObj = (object)response;
-            if (responseObj.GetType().IsGenericType &&
-                responseObj.GetType().GetGenericTypeDefinition() == typeof(Result<>))
-            {
-                var isSuccess = (bool)responseObj.GetType().GetProperty("IsSuccess")!.GetValue(responseObj)!;
-                if (isSuccess)
-                {
-                    var value = responseObj.GetType().GetProperty("Value")!.GetValue(responseObj);
-                    return successStatusCode == StatusCodes.Status201Created
-                        ? Microsoft.AspNetCore.Http.Results.Created(string.Empty, value)
-                        : Microsoft.AspNetCore.Http.Results.Ok(value);
-                }
-
-                var error = (Error)responseObj.GetType().GetProperty("Error")!.GetValue(responseObj)!;
-                var errors = (IReadOnlyList<Error>)responseObj.GetType().GetProperty("Errors")!.GetValue(responseObj)!;
-                return ResultToActionResultMapper.ToHttpResult(Result.Failure(errors), successStatusCode);
-            }
-
-            return Microsoft.AspNetCore.Http.Results.Ok(response);
+            return MapResponseToHttpResult(response, successStatusCode);
         };
+    }
+
+    private static async Task<object?> InvokeSendTyped<TResponse>(ISender sender, object request, CancellationToken ct)
+    {
+        var result = await sender.Send((IRequest<TResponse>)request, ct).ConfigureAwait(false);
+        return result;
+    }
+
+    private static IResult MapResponseToHttpResult(object? response, int successStatusCode)
+    {
+        if (response is null)
+        {
+            return Microsoft.AspNetCore.Http.Results.Ok();
+        }
+
+        if (response is Result result)
+        {
+            return ResultToActionResultMapper.ToHttpResult(result, successStatusCode);
+        }
+
+        // Check if it's Result<T>
+        var responseType = response.GetType();
+        if (responseType.IsGenericType &&
+            responseType.GetGenericTypeDefinition() == typeof(Result<>))
+        {
+            var isSuccess = (bool)responseType.GetProperty("IsSuccess")!.GetValue(response)!;
+            if (isSuccess)
+            {
+                var value = responseType.GetProperty("Value")!.GetValue(response);
+                return successStatusCode == StatusCodes.Status201Created
+                    ? Microsoft.AspNetCore.Http.Results.Created(string.Empty, value)
+                    : Microsoft.AspNetCore.Http.Results.Ok(value);
+            }
+
+            var errors = (IReadOnlyList<Error>)responseType.GetProperty("Errors")!.GetValue(response)!;
+            return ResultToActionResultMapper.ToHttpResult(Result.Failure(errors), successStatusCode);
+        }
+
+        return Microsoft.AspNetCore.Http.Results.Ok(response);
     }
 
     private static object BindFromQueryAndRoute(HttpContext context, Type requestType)
