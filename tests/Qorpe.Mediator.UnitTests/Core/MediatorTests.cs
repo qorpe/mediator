@@ -153,6 +153,96 @@ public class MediatorStreamTests
         await act.Should().ThrowAsync<OperationCanceledException>();
         items.Count.Should().BeGreaterThanOrEqualTo(3);
     }
+
+    [Fact]
+    public async Task CreateStream_WithBehavior_ShouldExecuteBehavior()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestStreamRequest).Assembly));
+        var trackingBehavior = new TrackingStreamBehavior<TestStreamRequest, int>();
+        services.AddSingleton<IStreamPipelineBehavior<TestStreamRequest, int>>(trackingBehavior);
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var items = new List<int>();
+        await foreach (var item in mediator.CreateStream(new TestStreamRequest(3)))
+        {
+            items.Add(item);
+        }
+
+        items.Should().HaveCount(3);
+        trackingBehavior.WasExecuted.Should().BeTrue("stream pipeline behavior should execute");
+    }
+
+    [Fact]
+    public async Task CreateStream_WithBlockingBehavior_ShouldPreventStreaming()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestStreamRequest).Assembly));
+        services.AddSingleton<IStreamPipelineBehavior<TestStreamRequest, int>>(
+            new BlockingStreamBehavior<TestStreamRequest, int>());
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var items = new List<int>();
+        var act = async () =>
+        {
+            await foreach (var item in mediator.CreateStream(new TestStreamRequest(5)))
+            {
+                items.Add(item);
+            }
+        };
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        items.Should().BeEmpty("blocking behavior should prevent any items from being yielded");
+    }
+
+    [Fact]
+    public async Task CreateStream_WithoutBehavior_ShouldStillWork()
+    {
+        var services = new ServiceCollection();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestStreamRequest).Assembly));
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var items = new List<int>();
+        await foreach (var item in mediator.CreateStream(new TestStreamRequest(3)))
+        {
+            items.Add(item);
+        }
+
+        items.Should().HaveCount(3, "streaming without behaviors should work as before");
+    }
+}
+
+/// <summary>
+/// Stream behavior that tracks execution for testing.
+/// </summary>
+internal sealed class TrackingStreamBehavior<TRequest, TResponse> : IStreamPipelineBehavior<TRequest, TResponse>
+    where TRequest : IStreamRequest<TResponse>
+{
+    public bool WasExecuted { get; private set; }
+
+    public IAsyncEnumerable<TResponse> Handle(TRequest request, StreamHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    {
+        WasExecuted = true;
+        return next();
+    }
+}
+
+/// <summary>
+/// Stream behavior that blocks execution (simulates authorization failure).
+/// </summary>
+internal sealed class BlockingStreamBehavior<TRequest, TResponse> : IStreamPipelineBehavior<TRequest, TResponse>
+    where TRequest : IStreamRequest<TResponse>
+{
+    public IAsyncEnumerable<TResponse> Handle(TRequest request, StreamHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    {
+        throw new UnauthorizedAccessException("Stream access denied");
+    }
 }
 
 public class MediatorConcurrencyTests

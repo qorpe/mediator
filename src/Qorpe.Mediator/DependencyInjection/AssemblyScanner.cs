@@ -14,6 +14,7 @@ internal static class AssemblyScanner
         typeof(INotificationHandler<>),
         typeof(IStreamRequestHandler<,>),
         typeof(IPipelineBehavior<,>),
+        typeof(IStreamPipelineBehavior<,>),
         typeof(IRequestPreProcessor<>),
         typeof(IRequestPostProcessor<,>)
     };
