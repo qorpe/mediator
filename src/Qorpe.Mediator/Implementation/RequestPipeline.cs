@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using Qorpe.Mediator.Abstractions;
 using Qorpe.Mediator.Exceptions;
 
@@ -121,12 +122,23 @@ internal static class RequestPipeline
             var pipelineBehaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(reqType, responseType);
             var handleMethod = pipelineBehaviorType.GetMethod("Handle")!;
 
-            return new Func<object, object, RequestHandlerDelegate<TResponse>, CancellationToken, ValueTask<TResponse>>(
-                (behavior, request, nextDelegate, ct) =>
-                {
-                    var result = handleMethod.Invoke(behavior, new object[] { request, nextDelegate, ct });
-                    return (ValueTask<TResponse>)result!;
-                });
+            // Compile expression tree delegate for zero-reflection invocation:
+            // (object behavior, object request, RequestHandlerDelegate<TResponse> next, CancellationToken ct) =>
+            //     ((IPipelineBehavior<TReq, TResp>)behavior).Handle((TReq)request, next, ct)
+            var behaviorParam = Expression.Parameter(typeof(object), "behavior");
+            var requestParam = Expression.Parameter(typeof(object), "request");
+            var nextParam = Expression.Parameter(typeof(RequestHandlerDelegate<TResponse>), "next");
+            var ctParam = Expression.Parameter(typeof(CancellationToken), "ct");
+
+            var castBehavior = Expression.Convert(behaviorParam, pipelineBehaviorType);
+            var castRequest = Expression.Convert(requestParam, reqType);
+
+            var call = Expression.Call(castBehavior, handleMethod, castRequest, nextParam, ctParam);
+
+            var lambda = Expression.Lambda<Func<object, object, RequestHandlerDelegate<TResponse>, CancellationToken, ValueTask<TResponse>>>(
+                call, behaviorParam, requestParam, nextParam, ctParam);
+
+            return (object)lambda.Compile();
         });
 
         return (Func<object, object, RequestHandlerDelegate<TResponse>, CancellationToken, ValueTask<TResponse>>)invoker;
