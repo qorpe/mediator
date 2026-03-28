@@ -1,0 +1,139 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Attributes;
+using Qorpe.Mediator.Behaviors.Configuration;
+
+namespace Qorpe.Mediator.Behaviors.Behaviors;
+
+/// <summary>
+/// Pipeline behavior that caches query responses. Commands are automatically skipped.
+/// Includes stampede prevention using SemaphoreSlim per cache key.
+/// </summary>
+public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    private readonly IDistributedCache? _cache;
+    private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
+    private readonly CachingBehaviorOptions _options;
+
+    // Per-key semaphores for stampede prevention
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> KeyLocks = new(StringComparer.Ordinal);
+
+    public CachingBehavior(
+        ILogger<CachingBehavior<TRequest, TResponse>> logger,
+        IOptions<CachingBehaviorOptions> options,
+        IDistributedCache? cache = null)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _cache = cache;
+    }
+
+    public async ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    {
+        if (!_options.Enabled)
+        {
+            return await next().ConfigureAwait(false);
+        }
+
+        // Skip commands — caching is for queries only
+        if (IsCommand())
+        {
+            return await next().ConfigureAwait(false);
+        }
+
+        var cacheableAttr = typeof(TRequest).GetCustomAttributes(typeof(CacheableAttribute), true)
+            .Cast<CacheableAttribute>()
+            .FirstOrDefault();
+
+        if (cacheableAttr is null)
+        {
+            return await next().ConfigureAwait(false);
+        }
+
+        // Duration 0 — no cache
+        if (cacheableAttr.DurationSeconds <= 0)
+        {
+            return await next().ConfigureAwait(false);
+        }
+
+        // Store down — fall through to handler
+        if (_cache is null)
+        {
+            _logger.LogWarning("IDistributedCache not configured, executing request without caching");
+            return await next().ConfigureAwait(false);
+        }
+
+        var cacheKey = GenerateCacheKey(request, cacheableAttr.CacheKeyPrefix);
+
+        // Stampede prevention: acquire per-key semaphore
+        var keyLock = KeyLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+
+        await keyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Try to get from cache
+            try
+            {
+                var cachedBytes = await _cache.GetAsync(cacheKey, cancellationToken).ConfigureAwait(false);
+                if (cachedBytes is not null)
+                {
+                    var cached = JsonSerializer.Deserialize<TResponse>(cachedBytes);
+                    if (cached is not null)
+                    {
+                        _logger.LogDebug("Cache hit for {RequestName} with key {CacheKey}", typeof(TRequest).Name, cacheKey);
+                        return cached;
+                    }
+
+                    // Type changed — cache miss, log it
+                    _logger.LogWarning("Cache type mismatch for key {CacheKey}, treating as miss", cacheKey);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Cache read failed for key {CacheKey}, falling through to handler", cacheKey);
+            }
+
+            // Execute handler
+            var response = await next().ConfigureAwait(false);
+
+            // Store in cache (null responses are valid)
+            try
+            {
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(response);
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(cacheableAttr.DurationSeconds)
+                };
+                await _cache.SetAsync(cacheKey, bytes, cacheOptions, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Cache write failed for key {CacheKey}", cacheKey);
+            }
+
+            return response;
+        }
+        finally
+        {
+            keyLock.Release();
+        }
+    }
+
+    private static string GenerateCacheKey(TRequest request, string? prefix)
+    {
+        var typeName = prefix ?? typeof(TRequest).FullName ?? typeof(TRequest).Name;
+        var json = JsonSerializer.Serialize(request);
+        return $"{typeName}:{json}";
+    }
+
+    private static bool IsCommand()
+    {
+        return typeof(TRequest).GetInterfaces()
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
+    }
+}
