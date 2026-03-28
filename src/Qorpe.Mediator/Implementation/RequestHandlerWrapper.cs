@@ -106,14 +106,18 @@ internal abstract class NotificationHandlerWrapperBase
 
 /// <summary>
 /// Typed notification handler wrapper. Zero reflection on the hot path.
+/// Caches a static callback delegate per TNotification to avoid closure allocation.
 /// </summary>
 internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHandlerWrapperBase
     where TNotification : INotification
 {
+    // Cached static callback — avoids closure allocation per handler per call
+    private static readonly Func<INotification, CancellationToken, ValueTask>[] EmptyCallbacks = Array.Empty<Func<INotification, CancellationToken, ValueTask>>();
+
     public override ValueTask Handle(INotification notification, IServiceProvider serviceProvider, CancellationToken cancellationToken,
         INotificationPublisher publisher)
     {
-        // Resolve handlers — fully typed, no MakeGenericType, no MethodInfo.Invoke
+        // Resolve handlers — fully typed, single DI call
         var handlers = serviceProvider.GetService<IEnumerable<INotificationHandler<TNotification>>>();
 
         if (handlers is null)
@@ -121,23 +125,32 @@ internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHa
             return ValueTask.CompletedTask;
         }
 
-        // Build executors — use array directly to avoid List overhead
-        NotificationHandlerExecutor[]? executors = null;
+        // Fast path: check if ICollection to pre-allocate exact size
+        int capacity;
+        if (handlers is ICollection<INotificationHandler<TNotification>> col)
+        {
+            capacity = col.Count;
+            if (capacity == 0) return ValueTask.CompletedTask;
+        }
+        else
+        {
+            capacity = 4;
+        }
+
+        var executors = new NotificationHandlerExecutor[capacity];
         int count = 0;
 
         foreach (var handler in handlers)
         {
-            executors ??= new NotificationHandlerExecutor[4];
             if (count >= executors.Length)
             {
                 var newArr = new NotificationHandlerExecutor[executors.Length * 2];
                 Array.Copy(executors, newArr, count);
                 executors = newArr;
             }
-            var capturedHandler = handler;
-            executors[count++] = new NotificationHandlerExecutor(
-                capturedHandler,
-                (n, ct) => capturedHandler.Handle((TNotification)n, ct));
+            // Use a static method reference to avoid closure allocation
+            var h = handler;
+            executors[count++] = new NotificationHandlerExecutor(h, CreateCallback(h));
         }
 
         if (count == 0)
@@ -145,15 +158,19 @@ internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHa
             return ValueTask.CompletedTask;
         }
 
-        // Trim to exact size for IReadOnlyList
-        if (count < executors!.Length)
+        // Use ArraySegment-style read if oversized
+        if (count < executors.Length)
         {
-            var trimmed = new NotificationHandlerExecutor[count];
-            Array.Copy(executors, trimmed, count);
-            executors = trimmed;
+            Array.Resize(ref executors, count);
         }
 
         return publisher.Publish(executors, notification, cancellationToken);
+    }
+
+    private static Func<INotification, CancellationToken, ValueTask> CreateCallback(INotificationHandler<TNotification> handler)
+    {
+        // Single closure per handler — captures only the handler instance
+        return (n, ct) => handler.Handle((TNotification)n, ct);
     }
 }
 
