@@ -62,31 +62,44 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
+        TResponse response;
+
         try
         {
-            var response = await next().ConfigureAwait(false);
+            response = await next().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Handler failed for {RequestName}, rolling back transaction", requestName);
+            await SafeRollbackAsync(requestName, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
 
+        try
+        {
             await _unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Committed transaction for {RequestName}", requestName);
-
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Rolling back transaction for {RequestName}", requestName);
-
-            try
-            {
-                await _unitOfWork.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception rollbackEx)
-            {
-                _logger.LogCritical(rollbackEx,
-                    "CRITICAL: Rollback failed for {RequestName}. Original exception preserved.",
-                    requestName);
-            }
-
+            _logger.LogError(ex, "Transaction commit failed for {RequestName}, rolling back", requestName);
+            await SafeRollbackAsync(requestName, cancellationToken).ConfigureAwait(false);
             throw;
+        }
+    }
+
+    private async ValueTask SafeRollbackAsync(string requestName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _unitOfWork!.RollbackAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception rollbackEx)
+        {
+            _logger.LogCritical(rollbackEx,
+                "CRITICAL: Rollback failed for {RequestName}. Original exception preserved.",
+                requestName);
         }
     }
 

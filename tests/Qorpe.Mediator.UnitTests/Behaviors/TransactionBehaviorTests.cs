@@ -105,4 +105,45 @@ public class TransactionBehaviorTests
         result.IsSuccess.Should().BeTrue();
         await uow.DidNotReceive().BeginTransactionAsync(Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Should_Rollback_On_Commit_Failure_Not_Handler_Failure()
+    {
+        var uow = Substitute.For<IUnitOfWork>();
+        uow.CommitAsync(Arg.Any<CancellationToken>())
+            .Returns(x => throw new InvalidOperationException("commit constraint violation"));
+
+        var behavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+        var handlerCalled = false;
+
+        RequestHandlerDelegate<Result> next = () =>
+        {
+            handlerCalled = true;
+            return new ValueTask<Result>(Result.Success());
+        };
+
+        var act = async () => await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*commit*");
+        handlerCalled.Should().BeTrue("handler should have succeeded before commit failed");
+        await uow.Received(1).RollbackAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_Preserve_Original_Exception_When_Rollback_Fails_After_Commit_Failure()
+    {
+        var uow = Substitute.For<IUnitOfWork>();
+        uow.CommitAsync(Arg.Any<CancellationToken>())
+            .Returns(x => throw new InvalidOperationException("commit failed"));
+        uow.RollbackAsync(Arg.Any<CancellationToken>())
+            .Returns(x => throw new Exception("rollback also failed"));
+
+        var behavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        var act = async () => await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
+
+        // Commit exception should be preserved, not the rollback one
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*commit*");
+    }
 }
