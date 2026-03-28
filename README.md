@@ -32,18 +32,17 @@ Benchmarked against MediatR v12 using BenchmarkDotNet. Full results: [docs/BENCH
 
 | Handlers | Qorpe | MediatR v12 | Result |
 |----------|-------|-------------|--------|
-| 1 handler | 27 ns / 88 B | 50 ns / 288 B | **47% faster, 3.3x less memory** |
-| 10 handlers | 75 ns / 376 B | 205 ns / 1,656 B | **63% faster, 4.4x less memory** |
-| 100 handlers | 578 ns / 3,256 B | 1,722 ns / 15,336 B | **66% faster, 4.7x less memory** |
+| 1 handler | 24 ns / 88 B | 46 ns / 288 B | **48% faster, 3.3x less memory** |
+| 10 handlers | 69 ns / 376 B | 187 ns / 1,656 B | **63% faster, 4.4x less memory** |
+| 100 handlers | 532 ns / 3,256 B | 1,552 ns / 15,336 B | **66% faster, 4.7x less memory** |
 
-### Send (Pipeline) — MediatR has lower latency, Qorpe has more features
+### Send (Pipeline) — Equal speed, Qorpe uses less memory
 
-| Behaviors | Qorpe | MediatR v12 | Notes |
-|-----------|-------|-------------|-------|
-| 1 behavior | 83 ns / 352 B | 62 ns / 368 B | Qorpe includes pre/post processors, behavior ordering |
-| 5 behaviors | 135 ns / 896 B | 123 ns / 944 B | Qorpe uses less memory |
-
-> Send overhead comes from features MediatR lacks: `IRequestPreProcessor`, `IRequestPostProcessor`, `IBehaviorOrder`, cancellation diagnostics. The ~30 ns difference is negligible vs typical handler execution (1-100+ ms).
+| Behaviors | Qorpe | MediatR v12 | Result |
+|-----------|-------|-------------|--------|
+| 1 behavior | 61 ns / 288 B | 59 ns / 368 B | ~equal speed, **22% less memory** |
+| 3 behaviors | 89 ns / 560 B | 90 ns / 656 B | **Qorpe 1% faster, 15% less memory** |
+| 5 behaviors | 119 ns / 832 B | 118 ns / 944 B | ~equal speed, **12% less memory** |
 
 - - -
 
