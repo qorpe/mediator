@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: [ '8.0.x', '9.0.x', '10.0.x' ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Unit Tests
+        run: dotnet test tests/Qorpe.Mediator.UnitTests/ --no-build --configuration Release --verbosity normal
+
+      - name: Integration Tests
+        run: dotnet test tests/Qorpe.Mediator.IntegrationTests/ --no-build --configuration Release --verbosity normal
+
+      - name: Load Tests
+        run: dotnet test tests/Qorpe.Mediator.LoadTests/ --no-build --configuration Release --verbosity normal
+        timeout-minutes: 5
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Test with Coverage
+        run: |
+          dotnet test tests/Qorpe.Mediator.UnitTests/ \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage \
+            --configuration Release
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/**/coverage.cobertura.xml
