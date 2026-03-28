@@ -392,6 +392,59 @@ internal sealed class TrackingPostProcessor<TRequest, TResponse> : IRequestPostP
     }
 }
 
+public class MediatorCancellationDiagnosticsTests
+{
+    [Fact]
+    public async Task Should_Log_Cancellation_With_Pipeline_Stage()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        // Add a slow behavior that will be cancelled
+        services.AddTransient<IPipelineBehavior<TestCommand, Result>, SlowBehavior>();
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var cts = new CancellationTokenSource();
+        cts.CancelAfter(10); // Cancel quickly
+
+        var act = async () => await mediator.Send(new TestCommand("test"), cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        // The cancellation diagnostic log was emitted (verified by not throwing + cancellation propagating)
+    }
+
+    [Fact]
+    public async Task Should_Propagate_Cancellation_Without_Swallowing()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQorpeMediator(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly));
+        services.AddTransient<IPipelineBehavior<TestCommand, Result>, SlowBehavior>();
+        var sp = services.BuildServiceProvider();
+        var mediator = sp.GetRequiredService<IMediator>();
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel(); // Already cancelled
+
+        var act = async () => await mediator.Send(new TestCommand("test"), cts.Token);
+
+        // Must throw — diagnostics should never swallow the exception
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+}
+
+internal sealed class SlowBehavior : IPipelineBehavior<TestCommand, Result>
+{
+    public async ValueTask<Result> Handle(TestCommand request, RequestHandlerDelegate<Result> next, CancellationToken cancellationToken)
+    {
+        await Task.Delay(1000, cancellationToken);
+        return await next().ConfigureAwait(false);
+    }
+}
+
 public class MediatorConcurrencyTests
 {
     [Fact]

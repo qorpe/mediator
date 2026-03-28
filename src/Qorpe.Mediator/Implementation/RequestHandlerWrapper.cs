@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Qorpe.Mediator.Abstractions;
 using Qorpe.Mediator.Exceptions;
 
@@ -91,6 +92,9 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         // Sort by IBehaviorOrder.Order if any behaviors implement it
         SortBehaviorsByOrder(behaviorArray, behaviorCount);
 
+        // Resolve logger for cancellation diagnostics (optional, zero-cost if not registered)
+        var logger = serviceProvider.GetService<ILogger<RequestHandlerWrapper<TRequest, TResponse>>>();
+
         // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] boxing
         RequestHandlerDelegate<TResponse> next = handlerDelegate;
 
@@ -98,7 +102,27 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         {
             var behavior = behaviorArray[i];
             var currentNext = next;
-            next = () => behavior.Handle(request, currentNext, cancellationToken);
+
+            if (logger is not null)
+            {
+                var behaviorName = behavior.GetType().Name;
+                next = async () =>
+                {
+                    try
+                    {
+                        return await behavior.Handle(request, currentNext, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        LogCancellation(logger, typeof(TRequest).Name, behaviorName, null);
+                        throw;
+                    }
+                };
+            }
+            else
+            {
+                next = () => behavior.Handle(request, currentNext, cancellationToken);
+            }
         }
 
         return next();
@@ -147,6 +171,12 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             return response;
         };
     }
+
+    private static readonly Action<ILogger, string, string, Exception?> LogCancellation =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Information,
+            new EventId(1, "RequestCancelled"),
+            "Request {RequestName} was cancelled during {PipelineStage}");
 
     private static void SortBehaviorsByOrder(IPipelineBehavior<TRequest, TResponse>[] behaviors, int count)
     {
