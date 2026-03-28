@@ -34,7 +34,8 @@ public static class EndpointMapper
 
         foreach (var endpoint in discoveredEndpoints)
         {
-            var routeKey = $"{endpoint.Attribute.Method}:{endpoint.Attribute.Route}";
+            var normalizedRoute = NormalizeRouteTemplate(endpoint.Attribute.Route);
+            var routeKey = $"{endpoint.Attribute.Method}:{normalizedRoute}";
             if (!routeSet.Add(routeKey))
             {
                 throw new InvalidOperationException(
@@ -293,6 +294,13 @@ public static class EndpointMapper
         {
             return null;
         }
+    }
+
+    private static string NormalizeRouteTemplate(string route)
+    {
+        // Replace {paramName} with {*} to detect semantically duplicate routes
+        // e.g., /api/orders/{id} and /api/orders/{orderId} both become /api/orders/{*}
+        return System.Text.RegularExpressions.Regex.Replace(route, @"\{[^}]+\}", "{*}");
     }
 
     private sealed class EndpointDescriptor
