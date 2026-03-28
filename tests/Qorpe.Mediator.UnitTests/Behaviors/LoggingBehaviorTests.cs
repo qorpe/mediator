@@ -86,4 +86,58 @@ public class LoggingBehaviorTests
         await behavior.Handle(new TestCommand("a very long name that exceeds limit"), next, CancellationToken.None);
         // Should not throw — truncation handled internally
     }
+
+    [Fact]
+    public async Task Should_Handle_Circular_Reference_Without_Throwing()
+    {
+        var circularLogger = Substitute.For<ILogger<LoggingBehavior<CircularRefCommand, Result>>>();
+        var opts = Options.Create(new LoggingBehaviorOptions());
+        var behavior = new LoggingBehavior<CircularRefCommand, Result>(circularLogger, opts);
+
+        var node = new CircularNode("root");
+        node.Child = new CircularNode("child") { Child = node }; // circular
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+        var result = await behavior.Handle(new CircularRefCommand(node), next, CancellationToken.None);
+
+        // Should not throw — circular reference handled by ReferenceHandler.IgnoreCycles
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Should_Handle_Deeply_Nested_Object_Without_Throwing()
+    {
+        var deepLogger = Substitute.For<ILogger<LoggingBehavior<CircularRefCommand, Result>>>();
+        var opts = Options.Create(new LoggingBehaviorOptions());
+        var behavior = new LoggingBehavior<CircularRefCommand, Result>(deepLogger, opts);
+
+        // Build 100-level deep nesting
+        var root = new CircularNode("level-0");
+        var current = root;
+        for (int i = 1; i < 100; i++)
+        {
+            current.Child = new CircularNode($"level-{i}");
+            current = current.Child;
+        }
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+        var result = await behavior.Handle(new CircularRefCommand(root), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+    }
+}
+
+public sealed class CircularNode
+{
+    public string Name { get; set; }
+    public CircularNode? Child { get; set; }
+    public CircularNode(string name) => Name = name;
+}
+
+public sealed record CircularRefCommand(CircularNode Root) : ICommand<Result>;
+
+public sealed class CircularRefCommandHandler : ICommandHandler<CircularRefCommand>
+{
+    public ValueTask<Result> Handle(CircularRefCommand request, CancellationToken cancellationToken)
+        => new(Result.Success());
 }
