@@ -1,5 +1,6 @@
 using System.Reflection;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Exceptions;
 
 namespace Qorpe.Mediator.DependencyInjection;
 
@@ -17,6 +18,13 @@ internal static class AssemblyScanner
         typeof(IStreamPipelineBehavior<,>),
         typeof(IRequestPreProcessor<>),
         typeof(IRequestPostProcessor<,>)
+    };
+
+    // Interfaces that must have exactly one handler per request type
+    private static readonly HashSet<Type> SingleHandlerInterfaces = new()
+    {
+        typeof(IRequestHandler<,>),
+        typeof(IStreamRequestHandler<,>)
     };
 
     /// <summary>
@@ -70,7 +78,42 @@ internal static class AssemblyScanner
             }
         }
 
+        ValidateNoDuplicateHandlers(registrations);
+
         return registrations;
+    }
+    private static void ValidateNoDuplicateHandlers(List<HandlerRegistration> registrations)
+    {
+        var singleHandlerMap = new Dictionary<Type, (Type ServiceType, Type ImplementationType)>();
+
+        for (int i = 0; i < registrations.Count; i++)
+        {
+            var reg = registrations[i];
+            if (!reg.ServiceType.IsGenericType)
+            {
+                continue;
+            }
+
+            var genericDef = reg.ServiceType.GetGenericTypeDefinition();
+            if (!SingleHandlerInterfaces.Contains(genericDef))
+            {
+                continue;
+            }
+
+            if (singleHandlerMap.TryGetValue(reg.ServiceType, out var existing))
+            {
+                throw new MultipleHandlersException(reg.ServiceType, 2)
+                {
+                    Data =
+                    {
+                        ["Handler1"] = existing.ImplementationType.FullName,
+                        ["Handler2"] = reg.ImplementationType.FullName
+                    }
+                };
+            }
+
+            singleHandlerMap[reg.ServiceType] = (reg.ServiceType, reg.ImplementationType);
+        }
     }
 }
 
