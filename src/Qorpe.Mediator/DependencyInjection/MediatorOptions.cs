@@ -57,6 +57,13 @@ public sealed class MediatorOptions
     public bool EnablePolymorphicNotifications { get; set; }
 
     /// <summary>
+    /// Gets or sets whether to validate handler registrations at startup.
+    /// When enabled, verifies that every discovered request type has a corresponding handler.
+    /// Throws an exception listing all missing handlers if any are found. Default is false.
+    /// </summary>
+    public bool ValidateOnStartup { get; set; }
+
+    /// <summary>
     /// Gets or sets the service lifetime for handlers. Defaults to Transient.
     /// </summary>
     public Microsoft.Extensions.DependencyInjection.ServiceLifetime HandlerLifetime { get; set; } =

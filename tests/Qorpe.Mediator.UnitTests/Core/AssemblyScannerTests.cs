@@ -48,3 +48,66 @@ public class AssemblyScannerDuplicateDetectionTests
 // Note: No duplicate handler types defined here — they would break all tests
 // that scan the unit test assembly. Duplicate detection is tested via the
 // load test assembly (multiple notification handlers) and exception validation.
+
+public class StartupValidationTests
+{
+    [Fact]
+    public void Should_Not_Throw_When_Validation_Disabled_Even_With_Missing_Handlers()
+    {
+        var services = new ServiceCollection();
+
+        // OrphanCommand has no handler, but validation is disabled (default)
+        var act = () => services.AddQorpeMediator(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(TestCommand).Assembly);
+            cfg.ValidateOnStartup = false;
+        });
+
+        act.Should().NotThrow("validation is disabled by default");
+    }
+
+    [Fact]
+    public void Should_Throw_When_Handler_Missing_And_Validation_Enabled()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddQorpeMediator(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(OrphanCommand).Assembly);
+            cfg.ValidateOnStartup = true;
+        });
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*OrphanCommand*")
+            .WithMessage("*no registered handler*");
+    }
+
+    [Fact]
+    public void Should_List_All_Missing_Handlers_In_Error_Message()
+    {
+        var services = new ServiceCollection();
+
+        try
+        {
+            services.AddQorpeMediator(cfg =>
+            {
+                cfg.RegisterServicesFromAssembly(typeof(OrphanCommand).Assembly);
+                cfg.ValidateOnStartup = true;
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Should mention OrphanCommand and AnotherOrphanQuery
+            ex.Message.Should().Contain("OrphanCommand");
+            ex.Message.Should().Contain("AnotherOrphanQuery");
+            return;
+        }
+
+        Assert.Fail("Should have thrown InvalidOperationException");
+    }
+}
+
+// Request types with no handler — used to test startup validation
+public sealed record OrphanCommand(string Data) : ICommand<Result>;
+public sealed record AnotherOrphanQuery(int Id) : IQuery<Result<string>>;
+// Intentionally no handlers for these types

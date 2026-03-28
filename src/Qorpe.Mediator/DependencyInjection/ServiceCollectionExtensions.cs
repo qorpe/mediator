@@ -75,6 +75,11 @@ public static class ServiceCollectionExtensions
                 var descriptor = new ServiceDescriptor(reg.ServiceType, reg.ImplementationType, options.HandlerLifetime);
                 services.TryAdd(descriptor);
             }
+
+            if (options.ValidateOnStartup)
+            {
+                ValidateHandlerRegistrations(options.AssembliesToRegister, registrations);
+            }
         }
 
         return services;
@@ -101,6 +106,85 @@ public static class ServiceCollectionExtensions
             default:
                 services.TryAddSingleton<INotificationPublisher>(new ForeachNotificationPublisher(stopOnFirstError: true));
                 break;
+        }
+    }
+
+    private static void ValidateHandlerRegistrations(
+        List<System.Reflection.Assembly> assemblies,
+        IReadOnlyList<HandlerRegistration> registrations)
+    {
+        // Build set of registered handler service types
+        var registeredHandlerTypes = new HashSet<Type>();
+        for (int i = 0; i < registrations.Count; i++)
+        {
+            var reg = registrations[i];
+            if (reg.ServiceType.IsGenericType)
+            {
+                var genericDef = reg.ServiceType.GetGenericTypeDefinition();
+                if (genericDef == typeof(IRequestHandler<,>) || genericDef == typeof(IStreamRequestHandler<,>))
+                {
+                    registeredHandlerTypes.Add(reg.ServiceType);
+                }
+            }
+        }
+
+        // Scan for all request types and verify handlers exist
+        var missingHandlers = new List<Type>();
+
+        for (int i = 0; i < assemblies.Count; i++)
+        {
+            Type[] types;
+            try
+            {
+                types = assemblies[i].GetTypes();
+            }
+            catch (System.Reflection.ReflectionTypeLoadException ex)
+            {
+                types = ex.Types.Where(t => t is not null).ToArray()!;
+            }
+
+            for (int j = 0; j < types.Length; j++)
+            {
+                var type = types[j];
+                if (type.IsAbstract || type.IsInterface || type.IsGenericTypeDefinition)
+                    continue;
+
+                var interfaces = type.GetInterfaces();
+                for (int k = 0; k < interfaces.Length; k++)
+                {
+                    var iface = interfaces[k];
+                    if (!iface.IsGenericType) continue;
+
+                    var genericDef = iface.GetGenericTypeDefinition();
+
+                    if (genericDef == typeof(IRequest<>))
+                    {
+                        var responseType = iface.GetGenericArguments()[0];
+                        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(type, responseType);
+                        if (!registeredHandlerTypes.Contains(handlerType))
+                        {
+                            missingHandlers.Add(type);
+                        }
+                    }
+                    else if (genericDef == typeof(IStreamRequest<>))
+                    {
+                        var responseType = iface.GetGenericArguments()[0];
+                        var handlerType = typeof(IStreamRequestHandler<,>).MakeGenericType(type, responseType);
+                        if (!registeredHandlerTypes.Contains(handlerType))
+                        {
+                            missingHandlers.Add(type);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (missingHandlers.Count > 0)
+        {
+            var typeNames = string.Join(", ", missingHandlers.Select(t => t.Name));
+            throw new InvalidOperationException(
+                $"Handler registration validation failed. {missingHandlers.Count} request type(s) have no registered handler: {typeNames}. " +
+                $"Create handler implementations or disable validation with ValidateOnStartup = false.");
         }
     }
 }
