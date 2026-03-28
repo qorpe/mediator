@@ -8,12 +8,10 @@
 | Property | Value |
 |----------|-------|
 | **Runtime** | .NET 10.0.1 (10.0.125.57005), Arm64 RyuJIT AdvSIMD |
-| **OS** | macOS (Apple Silicon, M-series) |
+| **OS** | macOS (Apple M5) |
 | **BenchmarkDotNet** | v0.14.0 |
 | **MediatR Version** | v12.4.1 |
-| **Qorpe.Mediator** | v1.0.0 |
-
----
+| **Qorpe.Mediator** | v1.0.0-preview.4 |
 
 ## Send (Command/Query Pipeline)
 
@@ -21,70 +19,63 @@ The most critical path — every request goes through `Send()`.
 
 | Scenario | Qorpe.Mediator | MediatR v12 | Speed | Memory |
 |----------|---------------|-------------|-------|--------|
-| **0 behaviors** | 25.3 ns / 64 B | 24.4 ns / 128 B | ~equal | **2x less** |
-| **1 behavior** | 41.1 ns / 288 B | 56.8 ns / 368 B | **28% faster** | **22% less** |
-| **3 behaviors** | 65.9 ns / 560 B | 88.0 ns / 656 B | **25% faster** | **15% less** |
-| **5 behaviors** | 94.1 ns / 832 B | 116.8 ns / 944 B | **19% faster** | **12% less** |
+| **0 behaviors** | 58 ns / 192 B | 27 ns / 128 B | MediatR faster | Qorpe +64 B |
+| **1 behavior** | 83 ns / 352 B | 62 ns / 368 B | MediatR faster | **Qorpe 4% less** |
+| **3 behaviors** | 110 ns / 624 B | 94 ns / 656 B | MediatR faster | **Qorpe 5% less** |
+| **5 behaviors** | 135 ns / 896 B | 123 ns / 944 B | MediatR faster | **Qorpe 5% less** |
 
-> With behaviors (the real-world scenario), Qorpe is consistently **20-28% faster** with less memory allocation.
-> The 0-behavior case is tied because both hit the same DI resolve floor (~24 ns).
+> The Send path has slightly higher latency due to pre/post processor resolution and behavior ordering.
+> Memory allocation is consistently lower with behaviors due to typed pipeline construction.
+> This trade-off enables pre-processors, post-processors, and explicit behavior ordering — features MediatR does not have.
 
 ## Query (Return Value)
 
 | Scenario | Qorpe.Mediator | MediatR v12 | Speed | Memory |
 |----------|---------------|-------------|-------|--------|
-| **Query returning Result\<int\>** | 28.1 ns / 104 B | 27.0 ns / 200 B | ~equal | **2x less** |
+| **Query returning Result\<int\>** | 62 ns / 232 B | 30 ns / 200 B | MediatR faster | Qorpe +32 B |
 
-> Qorpe returns `Result<int>` (richer type) with half the allocation of MediatR's raw `int`.
+> Qorpe returns `Result<int>` (richer type with error handling) vs MediatR's raw `int`.
 
 ## Publish (Notification Fanout)
 
-This is where Qorpe **dominates** — direct handler invocation without wrapper object allocation.
+This is where Qorpe excels — direct handler invocation without wrapper object allocation.
 
 | Handlers | Qorpe.Mediator | MediatR v12 | Speed | Memory |
 |----------|---------------|-------------|-------|--------|
-| **1 handler** | 27.0 ns / 88 B | 43.6 ns / 288 B | **38% faster** | **3.3x less** |
-| **10 handlers** | 72.6 ns / 376 B | 185.5 ns / 1,656 B | **61% faster** | **4.4x less** |
-| **50 handlers** | 286 ns / 1,656 B | 813 ns / 7,736 B | **65% faster** | **4.7x less** |
-| **100 handlers** | 549 ns / 3,256 B | 1,556 ns / 15,336 B | **65% faster** | **4.7x less** |
+| **1 handler** | 27 ns / 88 B | 50 ns / 288 B | **47% faster** | **3.3x less** |
+| **10 handlers** | 75 ns / 376 B | 205 ns / 1,656 B | **63% faster** | **4.4x less** |
+| **50 handlers** | 290 ns / 1,656 B | 847 ns / 7,736 B | **66% faster** | **4.7x less** |
+| **100 handlers** | 578 ns / 3,256 B | 1,722 ns / 15,336 B | **66% faster** | **4.7x less** |
 
 > MediatR creates `NotificationHandlerExecutor` wrapper objects + closure delegates per handler per call.
 > Qorpe invokes handlers directly — zero wrapper allocation.
 
 ## Summary Scorecard
 
-| Category | Benchmarks | Qorpe Wins | Tie | MediatR Wins |
-|----------|-----------|------------|-----|--------------|
-| Send (pipeline) | 4 | 3 | 1 | 0 |
-| Query | 1 | 0 | 1 | 0 |
-| Publish | 4 | 4 | 0 | 0 |
-| **Total** | **9** | **7** | **2** | **0** |
+| Category | Benchmarks | Qorpe Wins | MediatR Wins |
+|----------|-----------|------------|--------------|
+| Send (pipeline) | 4 | 0 (lower memory) | 4 (lower latency) |
+| Query | 1 | 0 | 1 |
+| Publish | 4 | 4 | 0 |
+| **Total** | **9** | **4** | **5** |
 
-**Memory: Qorpe uses less memory in ALL 9 benchmarks.**
+**Publish path: Qorpe is 47-66% faster with 3.3-4.7x less memory.**
+**Send path: MediatR has lower latency; Qorpe has lower memory and richer feature set (pre/post processors, behavior ordering, cancellation diagnostics).**
 
----
+## Why the Trade-off
 
-## Why Qorpe is Faster
+Qorpe's Send path resolves pre-processors, post-processors, and sorts behaviors by `IBehaviorOrder` on each request. These features add ~30-40 ns overhead but enable:
 
-### 1. Typed Handler Wrappers (Send Path)
-MediatR uses `MakeGenericType` + untyped `ServiceProvider.GetService(Type)` on every call.
-Qorpe compiles an Expression Tree delegate on first call, then uses `ServiceProvider.GetService<T>()` — fully typed, zero reflection.
+- `IRequestPreProcessor<T>` / `IRequestPostProcessor<T,R>` execution
+- Explicit behavior ordering via `IBehaviorOrder`
+- Cancellation diagnostics with pipeline stage tracking
+- Per-request performance threshold attributes
 
-### 2. Direct Notification Dispatch (Publish Path)
-MediatR creates `NotificationHandlerExecutor` objects with closure delegates for each handler on every Publish.
-Qorpe detects the publisher type and invokes handlers directly via typed `foreach` — no wrapper objects, no closures.
-
-### 3. ValueTask Over Task
-When handlers complete synchronously (cache hits, validation failures), `ValueTask` avoids the `Task` heap allocation entirely. MediatR uses `Task<T>` everywhere.
-
-### 4. ICollection Fast Path
-When DI returns handlers as `ICollection<T>`, Qorpe reads `.Count` to pre-allocate exact-size arrays — no List resizing.
-
----
+MediatR does not offer these features. The overhead is negligible in real-world scenarios where handler execution dominates (typically 1-100+ ms).
 
 ## Load Test Results
 
-> 17 load tests covering production scenarios for banking, telecom, and healthcare workloads.
+> 18 load tests covering production scenarios.
 
 ### Concurrency and Throughput
 
@@ -102,6 +93,7 @@ When DI returns handlers as `ICollection<T>`, Qorpe reads `.Count` to pre-alloca
 |------|-------|--------|
 | Sequential Memory Leak | 100,000 requests | < 10 MB growth |
 | Sequential + Behaviors Memory | 500,000 requests | < 20 MB growth |
+| Caching High-Cardinality Keys | 10,000 unique keys | < 20 MB growth |
 | Thread Pool Exhaustion | 20,000 operations | Pool not depleted |
 
 ### Notification Fanout
@@ -134,8 +126,6 @@ When DI returns handlers as `ICollection<T>`, Qorpe reads `.Count` to pre-alloca
 | **p95** | < 5 ms |
 | **p99** | < 10 ms |
 | **Throughput** | > 10,000 req/sec |
-
----
 
 ## Running Benchmarks
 

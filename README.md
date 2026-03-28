@@ -5,41 +5,47 @@
 [![NuGet](https://img.shields.io/nuget/vpre/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Qorpe.Mediator.svg)](https://www.nuget.org/packages/Qorpe.Mediator/)
 [![Build](https://github.com/qorpe/mediator/actions/workflows/ci.yml/badge.svg)](https://github.com/qorpe/mediator/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-blue)](https://dotnet.microsoft.com/)
 
-A production-ready, enterprise-grade CQRS mediator library for .NET with Result pattern, 9 built-in pipeline behaviors, DDD support, and attribute-based HTTP endpoint mapping. **MIT licensed. Free forever. No telemetry.**
+A production-ready CQRS mediator library for .NET with Result pattern, pipeline behaviors, DDD support, and attribute-based HTTP endpoint mapping.
 
----
+- - -
 
 ## Why Qorpe.Mediator?
 
-MediatR went commercial in 2025. The .NET community needs a free, better alternative. Qorpe.Mediator is built from scratch — not a fork — fixing known shortcomings and adding enterprise features the community has been asking for.
-
-- **Faster than MediatR** — Up to 65% faster, 4.7x less memory ([benchmarks](BENCHMARKS.md))
 - **Result Pattern built-in** — No more throwing exceptions for control flow
 - **Explicit CQRS** — `ICommand<T>`, `IQuery<T>` instead of just `IRequest`
-- **9 built-in behaviors** — Audit, logging, validation, auth, transactions, retry, caching, performance, idempotency
+- **10 built-in behaviors** — Audit, logging, validation, auth, transactions, retry, caching, performance, idempotency, cache invalidation
 - **Attribute-based HTTP endpoints** — `[HttpEndpoint]` eliminates controller boilerplate
 - **DDD native** — `IDomainEvent`, aggregate root patterns
-- **149 tests** — Unit, integration, load, E2E. Banking-grade reliability.
+- **Publish performance** — Up to 66% faster notification fanout with 4.7x less memory ([benchmarks](docs/BENCHMARKS.md))
+- **221 tests** — Unit, integration, load, E2E
 
----
+- - -
 
 ## Performance
 
-Qorpe.Mediator outperforms MediatR v12 in **7 of 9 benchmarks**, ties in 2, loses in 0. Memory usage is lower in all 9.
+Benchmarked against MediatR v12 using BenchmarkDotNet. Full results: [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 
-| Scenario | Qorpe | MediatR v12 | Result |
+### Publish (Notification Fanout) — Qorpe wins
+
+| Handlers | Qorpe | MediatR v12 | Result |
 |----------|-------|-------------|--------|
-| Send (1 behavior) | 41 ns / 288 B | 57 ns / 368 B | **28% faster** |
-| Send (3 behaviors) | 66 ns / 560 B | 88 ns / 656 B | **25% faster** |
-| Publish (10 handlers) | 73 ns / 376 B | 186 ns / 1,656 B | **61% faster, 4.4x less memory** |
-| Publish (100 handlers) | 549 ns / 3,256 B | 1,556 ns / 15,336 B | **65% faster, 4.7x less memory** |
+| 1 handler | 27 ns / 88 B | 50 ns / 288 B | **47% faster, 3.3x less memory** |
+| 10 handlers | 75 ns / 376 B | 205 ns / 1,656 B | **63% faster, 4.4x less memory** |
+| 100 handlers | 578 ns / 3,256 B | 1,722 ns / 15,336 B | **66% faster, 4.7x less memory** |
 
-Full results: [BENCHMARKS.md](BENCHMARKS.md)
+### Send (Pipeline) — MediatR has lower latency, Qorpe has more features
 
----
+| Behaviors | Qorpe | MediatR v12 | Notes |
+|-----------|-------|-------------|-------|
+| 1 behavior | 83 ns / 352 B | 62 ns / 368 B | Qorpe includes pre/post processors, behavior ordering |
+| 5 behaviors | 135 ns / 896 B | 123 ns / 944 B | Qorpe uses less memory |
+
+> Send overhead comes from features MediatR lacks: `IRequestPreProcessor`, `IRequestPostProcessor`, `IBehaviorOrder`, cancellation diagnostics. The ~30 ns difference is negligible vs typical handler execution (1-100+ ms).
+
+- - -
 
 ## Quick Start
 
@@ -87,7 +93,7 @@ result.Match(
 );
 ```
 
----
+- - -
 
 ## Features
 
@@ -150,24 +156,25 @@ app.MapQorpeEndpoints(typeof(Program).Assembly);
 // Result auto-mapped: Success->200/201, Validation->400, NotFound->404, etc.
 ```
 
----
+- - -
 
 ## Pipeline Behaviors
 
-All behaviors are attribute-driven, configurable, and can be enabled/disabled globally or per-request.
+All behaviors are attribute-driven, configurable, and automatically ordered via `IBehaviorOrder`.
 
-| # | Behavior | Attribute | Description |
-|---|----------|-----------|-------------|
-| 1 | **Audit** | `[Auditable]` | Logs everything first, async batching, sensitive data masking |
-| 2 | **Logging** | Auto | Structured request/response logging with auto-masking |
-| 3 | **UnhandledException** | Auto | Catch-all safety net, always re-throws after logging |
-| 4 | **Authorization** | `[Authorize]` | Role + policy checking, Result-based responses |
-| 5 | **Validation** | Auto | FluentValidation multi-validator, Result.Failure return |
-| 6 | **Idempotency** | `[Idempotent]` | SHA256 key, concurrent-safe, window-based expiry |
-| 7 | **Transaction** | `[Transactional]` | Command-only, rollback on failure, IUnitOfWork |
-| 8 | **Performance** | Auto | Stopwatch-based, configurable warning/critical thresholds |
-| 9 | **Retry** | `[Retryable]` | Exponential backoff with jitter, exception type filtering |
-| 10 | **Caching** | `[Cacheable]` | Query-only, stampede prevention via per-key semaphore |
+| # | Behavior | Attribute | Order | Description |
+|---|----------|-----------|-------|-------------|
+| 1 | **Audit** | `[Auditable]` | 100 | Async batching, store abstraction, sensitive data masking |
+| 2 | **Logging** | Auto | 200 | Structured logging, auto-mask, circular reference safe |
+| 3 | **UnhandledException** | Auto | 300 | Catch-all safety net, always re-throws |
+| 4 | **Authorization** | `[Authorize]` | 400 | Role + policy checking, Result-based responses |
+| 5 | **Validation** | Auto | 500 | FluentValidation multi-validator, Result.Failure |
+| 6 | **Idempotency** | `[Idempotent]` | 600 | SHA256 key, per-key locking, window-based expiry |
+| 7 | **Transaction** | `[Transactional]` | 700 | Command-only, rollback, distinct commit/handler errors |
+| 8 | **Performance** | `[PerformanceThreshold]` | 800 | Per-request thresholds, 30s hard ceiling |
+| 9 | **Retry** | `[Retryable]` | 900 | Exponential backoff with jitter, success attempt logging |
+| 10 | **Caching** | `[Cacheable]` | 1000 | Query-only, bounded lock pool, stampede prevention |
+| 11 | **Cache Invalidation** | `[InvalidatesCache]` | 1001 | Command-driven cache invalidation by key prefix |
 
 ### Full Configuration
 
@@ -176,18 +183,14 @@ builder.Services.AddQorpeMediator(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
     cfg.NotificationPublishStrategy = NotificationPublishStrategy.Parallel;
+    cfg.EnablePolymorphicNotifications = true;
+    cfg.ValidateOnStartup = true;
 });
 
 builder.Services.AddQorpeValidation(typeof(Program).Assembly);
 
 builder.Services.AddQorpeAllBehaviors(opts =>
 {
-    opts.ConfigureAudit = audit =>
-    {
-        audit.AuditCommands = true;
-        audit.AuditQueries = false;
-        audit.FallbackToConsole = true;
-    };
     opts.ConfigureLogging = log =>
     {
         log.MaskProperties.Add("CardNumber");
@@ -201,53 +204,55 @@ builder.Services.AddQorpeAllBehaviors(opts =>
 });
 ```
 
----
+- - -
 
 ## MediatR vs Qorpe.Mediator
 
 | Feature | MediatR v12 | Qorpe.Mediator |
 |---------|-------------|----------------|
-| License | Commercial (2025+) | **MIT, free forever** |
-| Send Performance | Baseline | **Up to 28% faster** |
-| Publish Performance | Baseline | **Up to 65% faster** |
-| Memory Usage | Baseline | **Up to 4.7x less** |
+| License | Commercial (2025+) | **MIT** |
+| Publish Performance | Baseline | **Up to 66% faster** |
+| Publish Memory | Baseline | **Up to 4.7x less** |
 | Result Pattern | No (exceptions) | **Built-in Result\<T\>** |
 | CQRS Types | IRequest only | **ICommand, IQuery, IRequest** |
 | Domain Events | INotification | **IDomainEvent + INotification** |
-| Streaming | IStreamRequest | IStreamRequest |
-| Built-in Behaviors | 0 | **9** |
+| Pre/Post Processors | Defined, wired | **Defined, wired** |
+| Behavior Ordering | Registration order | **Explicit IBehaviorOrder** |
+| Polymorphic Notifications | No | **Opt-in** |
+| Startup Validation | No | **ValidateOnStartup** |
+| Built-in Behaviors | 0 | **11** |
 | HTTP Endpoints | No | **[HttpEndpoint] attribute** |
+| Cache Invalidation | No | **[InvalidatesCache] attribute** |
 | ValueTask | No (Task) | **Yes (ValueTask)** |
-| Handler Resolution | MakeGenericType per call | **Compiled Expression Tree** |
-| Validation | Exception-based | **Result.Failure (no exceptions)** |
+| Cancellation Diagnostics | No | **Pipeline stage tracking** |
+| Stream Pipeline Behaviors | No | **IStreamPipelineBehavior** |
 | Sensitive Data | No | **[SensitiveData] auto-mask** |
-| Idempotency | No | **Built-in [Idempotent]** |
 | Telemetry | Yes | **None** |
 
----
+- - -
 
 ## Test Coverage
 
 | Layer | Tests | What It Covers |
 |-------|-------|----------------|
-| **Unit** | 123 | Result, Error, Guard, Mediator, all 9 behaviors, notifications, validation |
-| **Integration** | 9 | Full pipeline E2E, cross-behavior, DI registration, audit trail |
-| **Load** | 17 | 50K concurrent, 500K sequential, re-entrancy, streaming, latency percentiles |
-| **Total** | **149** | Banking/telecom/healthcare production scenarios |
+| **Unit** | 182 | Result, Error, Guard, Mediator, all behaviors, notifications, validation, pre/post processors |
+| **Integration** | 21 | Full pipeline E2E, HTTP endpoints, cross-behavior, DI registration |
+| **Load** | 18 | 50K concurrent, 500K sequential, memory stability, streaming, latency percentiles |
+| **Total** | **221** | Production-grade coverage |
 
----
+- - -
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
 | `Qorpe.Mediator` | Core — CQRS abstractions, Result pattern, Mediator implementation |
+| `Qorpe.Mediator.Behaviors` | 11 built-in pipeline behaviors |
 | `Qorpe.Mediator.FluentValidation` | FluentValidation integration — auto-discovery, multi-validator |
-| `Qorpe.Mediator.Behaviors` | 9 built-in pipeline behaviors |
 | `Qorpe.Mediator.AspNetCore` | HTTP endpoint mapping — [HttpEndpoint], Result-to-HTTP, OpenAPI |
 | `Qorpe.Mediator.Contracts` | Shared contracts for multi-project solutions |
 
----
+- - -
 
 ## Sample Project
 
@@ -259,20 +264,20 @@ See [`tests/Qorpe.Mediator.Sample.ECommerce/`](tests/Qorpe.Mediator.Sample.EComm
 - Attribute-based HTTP endpoint mapping
 - Full behavior pipeline configuration
 
----
+- - -
 
 ## Migration from MediatR
 
-See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for a step-by-step migration guide.
+See [docs/MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for a step-by-step migration guide.
 
----
+- - -
 
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
----
+- - -
 
 ## License
 
-MIT License. Free forever. No license key. No telemetry.
+[MIT License](LICENSE)
