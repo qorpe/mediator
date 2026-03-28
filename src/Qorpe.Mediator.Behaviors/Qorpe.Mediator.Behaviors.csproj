@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="Qorpe.Mediator.UnitTests" />
   </ItemGroup>
 
   <ItemGroup>
