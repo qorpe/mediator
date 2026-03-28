@@ -71,7 +71,16 @@ public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
         {
             try
             {
-                return await next().ConfigureAwait(false);
+                var response = await next().ConfigureAwait(false);
+
+                if (attempt > 0)
+                {
+                    _logger.LogInformation(
+                        "Request {RequestName} succeeded on attempt {Attempt}/{MaxRetries}",
+                        typeof(TRequest).Name, attempt + 1, maxRetries);
+                }
+
+                return response;
             }
             catch (Exception ex) when (ShouldRetry(ex, attempt, maxRetries, cancellationToken))
             {
