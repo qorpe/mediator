@@ -10,3 +10,4 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Performance", "CA1822:Mark members as static")]
 [assembly: SuppressMessage("Design", "CA2201:Do not raise reserved exception types")]
 [assembly: SuppressMessage("Reliability", "CA2012:Use ValueTasks correctly")]
+[assembly: SuppressMessage("Usage", "CA2211:Non-constant fields should not be visible")]

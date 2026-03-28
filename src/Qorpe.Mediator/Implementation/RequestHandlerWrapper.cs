@@ -22,10 +22,6 @@ internal abstract class RequestHandlerWrapperBase
 internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandlerWrapperBase
     where TRequest : IRequest<TResponse>
 {
-    // Tri-state behavior detection cache: 0=unknown, 1=no behaviors, 2=has behaviors
-    // After first call, we know whether behaviors exist and skip the DI resolve entirely
-    private volatile int _behaviorState;
-
     public override async ValueTask<object?> Handle(object request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
         var result = await HandleTyped((TRequest)request, serviceProvider, cancellationToken).ConfigureAwait(false);
@@ -34,100 +30,60 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
     public ValueTask<TResponse> HandleTyped(TRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        // Resolve handler — fully typed, single DI call
+        // Resolve handler — fully typed, single DI call, zero reflection
         var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>();
         if (handler is null)
         {
             throw new HandlerNotFoundException(typeof(TRequest));
         }
 
-        // OPTIMIZATION: After first call, skip behavior DI resolve entirely if no behaviors registered
-        var state = _behaviorState;
-        if (state == 1) // No behaviors — direct handler call, skip DI resolve
-        {
-            return handler.Handle(request, cancellationToken);
-        }
-
-        if (state == 2) // Known to have behaviors — resolve and build pipeline
-        {
-            return ExecuteWithBehaviors(request, handler, serviceProvider, cancellationToken);
-        }
-
-        // First call (state == 0) — detect and cache
-        return DetectAndExecute(request, handler, serviceProvider, cancellationToken);
-    }
-
-    private ValueTask<TResponse> DetectAndExecute(TRequest request, IRequestHandler<TRequest, TResponse> handler,
-        IServiceProvider serviceProvider, CancellationToken cancellationToken)
-    {
+        // Resolve behaviors — fully typed DI call
+        // MS.Extensions.DI returns a cached empty enumerable for unregistered IEnumerable<T>,
+        // so this call is fast (~5ns) even when no behaviors exist.
         var behaviors = serviceProvider.GetService<IEnumerable<IPipelineBehavior<TRequest, TResponse>>>();
 
-        if (behaviors is null)
-        {
-            _behaviorState = 1; // Cache: no behaviors
-            return handler.Handle(request, cancellationToken);
-        }
-
-        // Count behaviors
-        int behaviorCount = 0;
-        if (behaviors is ICollection<IPipelineBehavior<TRequest, TResponse>> col)
-        {
-            behaviorCount = col.Count;
-        }
-        else
-        {
-            foreach (var _ in behaviors)
-            {
-                behaviorCount++;
-                break; // Just need to know if > 0
-            }
-        }
-
-        if (behaviorCount == 0)
-        {
-            _behaviorState = 1; // Cache: no behaviors
-            return handler.Handle(request, cancellationToken);
-        }
-
-        _behaviorState = 2; // Cache: has behaviors
-        return ExecuteWithBehaviors(request, handler, serviceProvider, cancellationToken);
-    }
-
-    private static ValueTask<TResponse> ExecuteWithBehaviors(TRequest request, IRequestHandler<TRequest, TResponse> handler,
-        IServiceProvider serviceProvider, CancellationToken cancellationToken)
-    {
-        var behaviors = serviceProvider.GetService<IEnumerable<IPipelineBehavior<TRequest, TResponse>>>();
+        // Fast path: no behaviors registered
         if (behaviors is null)
         {
             return handler.Handle(request, cancellationToken);
         }
 
-        // Materialize to array
-        IPipelineBehavior<TRequest, TResponse>[] behaviorArray;
+        // Materialize to array — use ICollection fast path when available
+        IPipelineBehavior<TRequest, TResponse>[]? behaviorArray;
+        int behaviorCount;
+
         if (behaviors is IPipelineBehavior<TRequest, TResponse>[] arr)
         {
             behaviorArray = arr;
+            behaviorCount = arr.Length;
         }
         else if (behaviors is ICollection<IPipelineBehavior<TRequest, TResponse>> col)
         {
-            behaviorArray = new IPipelineBehavior<TRequest, TResponse>[col.Count];
+            behaviorCount = col.Count;
+            if (behaviorCount == 0)
+            {
+                return handler.Handle(request, cancellationToken);
+            }
+            behaviorArray = new IPipelineBehavior<TRequest, TResponse>[behaviorCount];
             col.CopyTo(behaviorArray, 0);
         }
         else
         {
+            // Enumerate — rare path for custom IEnumerable implementations
             var list = new List<IPipelineBehavior<TRequest, TResponse>>(behaviors);
             behaviorArray = list.ToArray();
+            behaviorCount = behaviorArray.Length;
         }
 
-        if (behaviorArray.Length == 0)
+        if (behaviorCount == 0)
         {
             return handler.Handle(request, cancellationToken);
         }
 
-        // Build pipeline chain — fully typed, zero reflection
+        // Build pipeline chain — fully typed, no MethodInfo.Invoke, no object[] boxing
         RequestHandlerDelegate<TResponse> next = () => handler.Handle(request, cancellationToken);
 
-        for (int i = behaviorArray.Length - 1; i >= 0; i--)
+        for (int i = behaviorCount - 1; i >= 0; i--)
         {
             var behavior = behaviorArray[i];
             var currentNext = next;
