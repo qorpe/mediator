@@ -136,6 +136,29 @@ public static class EndpointMapper
         }
 
         routeBuilder.WithName(requestType.Name);
+
+        // OpenAPI schema enrichment — add Produces metadata for Result-based responses
+        if (responseType == typeof(Result))
+        {
+            routeBuilder.Produces(defaultSuccessCode);
+        }
+        else if (responseType.IsGenericType && responseType.GetGenericTypeDefinition() == typeof(Result<>))
+        {
+            var valueType = responseType.GetGenericArguments()[0];
+            // Use reflection to call Produces<T>(statusCode) with the value type
+            var producesMethod = typeof(OpenApiRouteHandlerBuilderExtensions)
+                .GetMethods()
+                .FirstOrDefault(m => m.Name == "Produces" && m.IsGenericMethod && m.GetParameters().Length == 4);
+            if (producesMethod is not null)
+            {
+                producesMethod.MakeGenericMethod(valueType)
+                    .Invoke(null, new object[] { routeBuilder, defaultSuccessCode, null!, Array.Empty<string>() });
+            }
+        }
+
+        // Standard error responses for all endpoints
+        routeBuilder.ProducesProblem(StatusCodes.Status400BadRequest)
+                    .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
     // Cache: requestType -> compiled send delegate (one MakeGenericMethod per type, not per request)
