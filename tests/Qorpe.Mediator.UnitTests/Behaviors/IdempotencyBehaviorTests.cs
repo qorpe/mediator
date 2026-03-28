@@ -128,4 +128,86 @@ public class IdempotencyBehaviorTests
         await behavior.Handle(new IdempotentCommand("data"), next, CancellationToken.None);
         await store.DidNotReceive().ExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Should_Serialize_Concurrent_Requests_With_Same_Key()
+    {
+        var executionCount = 0;
+        var store = new InMemoryIdempotencyStore();
+
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store);
+
+        RequestHandlerDelegate<Result> next = async () =>
+        {
+            Interlocked.Increment(ref executionCount);
+            await Task.Delay(50); // Simulate work
+            return Result.Success();
+        };
+
+        var request = new IdempotentCommand("same-data");
+
+        // Launch concurrent requests with the same idempotency key
+        var tasks = Enumerable.Range(0, 10).Select(_ =>
+            behavior.Handle(request, next, CancellationToken.None).AsTask());
+
+        await Task.WhenAll(tasks);
+
+        // Only the first should have executed the handler; rest should get cached result
+        executionCount.Should().Be(1, "per-key lock should serialize concurrent identical requests");
+    }
+
+    [Fact]
+    public async Task Should_Allow_Parallel_Execution_For_Different_Keys()
+    {
+        var executionCount = 0;
+        var store = new InMemoryIdempotencyStore();
+
+        var behavior = new IdempotencyBehavior<IdempotentCommand, Result>(_logger, _options, store);
+
+        RequestHandlerDelegate<Result> next = () =>
+        {
+            Interlocked.Increment(ref executionCount);
+            return new ValueTask<Result>(Result.Success());
+        };
+
+        // Different keys should not block each other
+        var tasks = Enumerable.Range(0, 10).Select(i =>
+            behavior.Handle(new IdempotentCommand($"data-{i}"), next, CancellationToken.None).AsTask());
+
+        await Task.WhenAll(tasks);
+
+        executionCount.Should().Be(10, "different idempotency keys should execute independently");
+    }
+}
+
+/// <summary>
+/// Simple in-memory idempotency store for testing concurrent behavior.
+/// </summary>
+internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> _store = new();
+
+    public ValueTask<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+        => new(_store.ContainsKey(key));
+
+    public ValueTask<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        if (_store.TryGetValue(key, out var value) && value is T typed)
+        {
+            return new(typed);
+        }
+        return new(default(T));
+    }
+
+    public ValueTask SetAsync<T>(string key, T value, TimeSpan expiry, CancellationToken cancellationToken = default)
+    {
+        _store[key] = value!;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _store.TryRemove(key, out _);
+        return ValueTask.CompletedTask;
+    }
 }
