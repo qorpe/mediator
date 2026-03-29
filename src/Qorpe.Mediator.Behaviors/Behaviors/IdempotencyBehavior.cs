@@ -29,6 +29,10 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
     private readonly ILogger<IdempotencyBehavior<TRequest, TResponse>> _logger;
     private readonly IdempotencyBehaviorOptions _options;
 
+    // Cached type check — runs once per closed generic type, not per request
+    private static readonly bool IsQueryType = typeof(TRequest).GetInterfaces()
+        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
+
     // Per-key lock pool shared across all IdempotencyBehavior instances
     private static readonly BoundedLockPool KeyLocks = new();
 
@@ -50,7 +54,7 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
         }
 
         // Skip queries
-        if (IsQuery())
+        if (IsQueryType)
         {
             return await next().ConfigureAwait(false);
         }
@@ -123,9 +127,4 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
         return Convert.ToHexString(hash);
     }
 
-    private static bool IsQuery()
-    {
-        return typeof(TRequest).GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
-    }
 }
