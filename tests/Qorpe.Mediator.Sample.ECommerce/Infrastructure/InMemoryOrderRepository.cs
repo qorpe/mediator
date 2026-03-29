@@ -51,11 +51,46 @@ public sealed class InMemoryOrderRepository
 
 public sealed class InMemoryUnitOfWork : Qorpe.Mediator.Abstractions.IUnitOfWork
 {
-    public ValueTask BeginTransactionAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
-    public ValueTask CommitAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
-    public ValueTask RollbackAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    private int _beginCount;
+    private int _commitCount;
+
+    public int BeginCount => _beginCount;
+    public int CommitCount => _commitCount;
+
+    public ValueTask BeginTransactionAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _beginCount);
+        Console.WriteLine($"[UoW] BeginTransaction (total: {_beginCount})");
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        Console.WriteLine("[UoW] SaveChanges");
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask CommitAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _commitCount);
+        Console.WriteLine($"[UoW] Commit (total: {_commitCount})");
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask RollbackAsync(CancellationToken cancellationToken)
+    {
+        Console.WriteLine("[UoW] Rollback");
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask CreateSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
     public ValueTask RollbackToSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+    public void Reset()
+    {
+        Interlocked.Exchange(ref _beginCount, 0);
+        Interlocked.Exchange(ref _commitCount, 0);
+    }
 }
 
 public sealed class FakePaymentGateway
