@@ -17,10 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RetryBehavior TaskCanceledException** — The pattern `TaskCanceledException and not OperationCanceledException` was always unreachable due to inheritance. HttpClient timeout exceptions are now correctly retried using token comparison (#68)
 - **Stream behavior ordering** — StreamHandlerWrapper now sorts `IStreamPipelineBehavior` by `IBehaviorOrder.Order`, matching RequestHandlerWrapper behavior (#74)
 
+### Added
+- **Post-commit task queue** — `IPostCommitTaskQueue` abstraction for fire-and-forget tasks after transaction commit (emails, notifications). TransactionBehavior executes queued tasks after successful commit. Fully backward compatible (#89)
+- **IAuditableRequest metadata** — Rich audit metadata interface with ActionName, EntityType, EntityId, and custom AuditMetadata. Implementing the interface triggers audit logging automatically (#91)
+
 ### Testing
 - **Behavior ordering tests** — 4 tests verifying IBehaviorOrder-based execution order (ascending, default position, stable sort) (#76)
 - **Stream ordering tests** — 2 tests verifying stream behavior ordering (#78)
-- **Total tests: 252** (213 unit + 21 integration + 18 load)
+- **Post-commit queue tests** — 10 tests (queue execution, ordering, failure isolation, concurrent enqueue, commit/rollback integration) (#89)
+- **Audit metadata tests** — 4 tests (metadata population, audit without attribute, backward compat, failure capture) (#91)
+- **Total tests: 256** (217 unit + 21 integration + 18 load)
 
 ### CI/CD
 - **CodeQL security scanning** — Added GitHub CodeQL workflow for C# SAST analysis (#81)

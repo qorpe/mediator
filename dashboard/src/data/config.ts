@@ -9,7 +9,7 @@ export const heroStats = {
   fasterPublish: "66%",
   lessMemory: "4.7x",
   pipelineBehaviors: "11",
-  testsCoverage: "252",
+  testsCoverage: "256",
 };
 
 export const benchmarkHighlights = {
