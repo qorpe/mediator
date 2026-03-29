@@ -1,4 +1,5 @@
-using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
@@ -136,7 +137,8 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     {
         var typeName = prefix ?? typeof(TRequest).FullName ?? typeof(TRequest).Name;
         var json = JsonSerializer.Serialize(request);
-        return $"{typeName}:{json}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return $"{typeName}:{Convert.ToHexString(hash)}";
     }
 
 }
