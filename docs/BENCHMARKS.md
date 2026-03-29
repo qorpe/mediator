@@ -11,7 +11,7 @@
 | **OS** | macOS (Apple M5) |
 | **BenchmarkDotNet** | v0.14.0 |
 | **MediatR Version** | v12.4.1 |
-| **Qorpe.Mediator** | v1.0.0-preview.5+ |
+| **Qorpe.Mediator** | v1.0.0-beta.8 |
 
 ## Send (Command/Query Pipeline)
 
@@ -71,7 +71,7 @@ This is where Qorpe dominates — direct handler invocation without wrapper obje
 
 ## Load Test Results
 
-> 18 load tests covering production scenarios.
+> 18 load tests + 252 total tests covering production scenarios.
 
 ### Concurrency and Throughput
 
