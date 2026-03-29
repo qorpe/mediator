@@ -48,9 +48,10 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
     <header
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-500",
-        scrolled
+        scrolled || mobileOpen
           ? "glass shadow-sm"
           : "bg-transparent",
+        mobileOpen && "bg-surface dark:bg-surface",
       )}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -153,7 +154,9 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
 
         {/* Mobile Nav */}
         {mobileOpen && (
-          <div className="md:hidden pb-4 border-t border-border mt-2 pt-4 space-y-1">
+          <>
+          <div className="fixed inset-0 top-16 bg-black/40 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
+          <div className="md:hidden pb-6 border-t border-border mt-2 pt-4 space-y-1 relative z-50 bg-surface dark:bg-surface shadow-xl rounded-b-2xl">
             {NAV_IDS.map((id) => (
               <button
                 key={id}
@@ -169,6 +172,7 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
               </button>
             ))}
           </div>
+          </>
         )}
       </nav>
     </header>
