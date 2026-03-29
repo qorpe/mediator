@@ -11,7 +11,7 @@
 | **OS** | macOS (Apple M5) |
 | **BenchmarkDotNet** | v0.14.0 |
 | **MediatR Version** | v12.4.1 |
-| **Qorpe.Mediator** | v1.0.0-beta.8 |
+| **Qorpe.Mediator** | v1.0.0-preview.8 |
 
 ## Send (Command/Query Pipeline)
 

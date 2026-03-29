@@ -3,13 +3,13 @@
  * Update this single file when releasing a new version or updating benchmarks.
  */
 
-export const APP_VERSION = "1.0.0-beta.8";
+export const APP_VERSION = "1.0.0-preview.8";
 
 export const heroStats = {
   fasterPublish: "66%",
   lessMemory: "4.7x",
   pipelineBehaviors: "11",
-  testsCoverage: "256",
+  testsCoverage: "277",
 };
 
 export const benchmarkHighlights = {
