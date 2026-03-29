@@ -61,6 +61,9 @@ public static class ServiceCollectionExtensions
         // Register options for injection
         services.TryAddSingleton(options);
 
+        // Register pipeline probe cache for fast-path optimization (one per container)
+        services.TryAddSingleton<PipelineProbeCache>();
+
         // Register the mediator
         services.TryAddTransient<IMediator, Implementation.Mediator>();
         services.TryAddTransient<ISender>(sp => sp.GetRequiredService<IMediator>());
