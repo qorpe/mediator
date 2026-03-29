@@ -29,25 +29,27 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         return result;
     }
 
+    // Volatile flag per <TRequest, TResponse>: set to 1 when any container is handler-only.
+    // When 0, cache check is skipped entirely — zero overhead for behavior-only scenarios.
+    private static volatile int _hasFastPathCandidate;
+
+
     public ValueTask<TResponse> HandleTyped(TRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
-        // Check per-container pipeline probe cache for fast path
-        var probeCache = serviceProvider.GetService<PipelineProbeCache>();
-        if (probeCache != null && probeCache.TryGetHandlerOnly(typeof(TRequest), out var isHandlerOnly) && isHandlerOnly)
+        // Gate: only check per-container cache if a handler-only path has ever been seen for this type
+        if (_hasFastPathCandidate == 1)
         {
-            // FAST PATH: no processors, no behaviors — 1 DI call, no closure, no delegate
-            var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>()
-                ?? throw new HandlerNotFoundException(typeof(TRequest));
-            return handler.Handle(request, cancellationToken);
+            var probeCache = serviceProvider.GetService<PipelineProbeCache>();
+            if (probeCache != null && probeCache.TryGetHandlerOnly(typeof(TRequest), out var isHandlerOnly) && isHandlerOnly)
+            {
+                // FAST PATH: no processors, no behaviors — 1 DI call, no closure, no delegate
+                var h = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>()
+                    ?? throw new HandlerNotFoundException(typeof(TRequest));
+                return h.Handle(request, cancellationToken);
+            }
         }
 
-        return HandleWithPipeline(request, serviceProvider, cancellationToken, probeCache);
-    }
-
-    private ValueTask<TResponse> HandleWithPipeline(TRequest request, IServiceProvider serviceProvider,
-        CancellationToken cancellationToken, PipelineProbeCache? probeCache)
-    {
-        // Resolve handler — fully typed, single DI call, zero reflection
+        // FULL PIPELINE — original code, zero cache overhead when _hasFastPathCandidate == 0
         var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>();
         if (handler is null)
         {
@@ -66,7 +68,6 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         RequestHandlerDelegate<TResponse> handlerDelegate;
         if (!hasPreProcessors && !hasPostProcessors)
         {
-            // Fast path: no processors — direct handler call
             handlerDelegate = () => handler.Handle(request, cancellationToken);
         }
         else
@@ -80,8 +81,13 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         // Fast path: no behaviors registered
         if (behaviors is null)
         {
-            // Cache the probe result for subsequent calls
-            probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
+            if (!hasPreProcessors && !hasPostProcessors)
+            {
+                // Handler-only: cache for fast path on subsequent calls
+                var pc = serviceProvider.GetService<PipelineProbeCache>();
+                pc?.SetHandlerOnly(typeof(TRequest), true);
+                _hasFastPathCandidate = 1;
+            }
             return handlerDelegate();
         }
 
@@ -99,8 +105,12 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             behaviorCount = col.Count;
             if (behaviorCount == 0)
             {
-                // Cache the probe result for subsequent calls
-                probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
+                if (!hasPreProcessors && !hasPostProcessors)
+                {
+                    var pc = serviceProvider.GetService<PipelineProbeCache>();
+                    pc?.SetHandlerOnly(typeof(TRequest), true);
+                    _hasFastPathCandidate = 1;
+                }
                 return handlerDelegate();
             }
             behaviorArray = new IPipelineBehavior<TRequest, TResponse>[behaviorCount];
@@ -115,13 +125,21 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
         if (behaviorCount == 0)
         {
-            // Cache the probe result for subsequent calls
-            probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
+            if (!hasPreProcessors && !hasPostProcessors)
+            {
+                var pc = serviceProvider.GetService<PipelineProbeCache>();
+                pc?.SetHandlerOnly(typeof(TRequest), true);
+                _hasFastPathCandidate = 1;
+            }
             return handlerDelegate();
         }
 
-        // Has pipeline elements — cache as non-handler-only
-        probeCache?.SetHandlerOnly(typeof(TRequest), false);
+        // Has behaviors — mark this container so fast-path check works correctly
+        if (_hasFastPathCandidate == 1)
+        {
+            var pc = serviceProvider.GetService<PipelineProbeCache>();
+            pc?.SetHandlerOnly(typeof(TRequest), false);
+        }
 
         // Sort by IBehaviorOrder.Order if any behaviors implement it
         SortBehaviorsByOrder(behaviorArray, behaviorCount);
