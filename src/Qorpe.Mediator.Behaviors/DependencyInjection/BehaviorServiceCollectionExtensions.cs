@@ -74,7 +74,7 @@ public static class BehaviorServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds transaction behavior.
+    /// Adds transaction behavior with optional post-commit task queue.
     /// </summary>
     public static IServiceCollection AddQorpeTransactions(
         this IServiceCollection services,
@@ -87,6 +87,7 @@ public static class BehaviorServiceCollectionExtensions
         services.AddOptionsWithValidateOnStart<TransactionBehaviorOptions>()
             .Validate(o => o.DefaultTimeoutSeconds > 0, "DefaultTimeoutSeconds must be positive.");
 
+        services.TryAddScoped<IPostCommitTaskQueue, Behaviors.PostCommitTaskQueue>();
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
         return services;
     }
