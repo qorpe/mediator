@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.8] - 2026-03-29
+
+### Performance
+- **Attribute reflection caching** — All behavior attribute lookups (`[Retryable]`, `[Cacheable]`, `[Authorize]`, etc.) now use `static readonly` fields, eliminating per-request `GetCustomAttributes` reflection (#64)
+- **Type check caching** — `IsCommand()`/`IsQuery()` interface checks in CachingBehavior, IdempotencyBehavior, TransactionBehavior cached as `static readonly bool` (#66)
+- **Cache key optimization** — CachingBehavior now uses SHA256 hash for cache keys instead of raw JSON strings, preventing excessively long keys (#70)
+- **Auth result caching** — AuthorizationBehavior `Result<T>.Failure()` method lookup cached as compiled delegate instead of per-invocation reflection (#72)
+
+### Fixed
+- **RetryBehavior TaskCanceledException** — The pattern `TaskCanceledException and not OperationCanceledException` was always unreachable due to inheritance. HttpClient timeout exceptions are now correctly retried using token comparison (#68)
+- **Stream behavior ordering** — StreamHandlerWrapper now sorts `IStreamPipelineBehavior` by `IBehaviorOrder.Order`, matching RequestHandlerWrapper behavior (#74)
+
+### Testing
+- **Behavior ordering tests** — 4 tests verifying IBehaviorOrder-based execution order (ascending, default position, stable sort) (#76)
+- **Stream ordering tests** — 2 tests verifying stream behavior ordering (#78)
+- **Total tests: 252** (213 unit + 21 integration + 18 load)
+
+### CI/CD
+- **CodeQL security scanning** — Added GitHub CodeQL workflow for C# SAST analysis (#81)
+
 ## [1.0.0] - 2025-03-28
 
 ### Core Architecture
