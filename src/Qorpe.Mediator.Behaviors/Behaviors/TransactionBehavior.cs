@@ -110,6 +110,9 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
 
         try
         {
+            // Flush pending changes before commit (EF Core SaveChanges safety net)
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
             await _unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Committed transaction for {RequestName}", requestName);
             IsInTransaction.Value = false;

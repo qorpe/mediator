@@ -96,6 +96,33 @@ public class TransactionBehaviorTests
     }
 
     [Fact]
+    public async Task Should_Call_SaveChangesAsync_Before_Commit()
+    {
+        var callOrder = new List<string>();
+        var uow = new SaveChangesTrackingUow(callOrder);
+        var behavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+        await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
+
+        callOrder.Should().Equal("Begin", "SaveChanges", "Commit");
+    }
+
+    [Fact]
+    public async Task Should_Not_Call_SaveChanges_On_Handler_Failure()
+    {
+        var callOrder = new List<string>();
+        var uow = new SaveChangesTrackingUow(callOrder);
+        var behavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+
+        RequestHandlerDelegate<Result> next = () => throw new InvalidOperationException("fail");
+        var act = async () => await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        callOrder.Should().Equal("Begin", "Rollback");
+    }
+
+    [Fact]
     public async Task Should_Skip_When_Disabled()
     {
         var opts = Options.Create(new TransactionBehaviorOptions { Enabled = false });
@@ -284,5 +311,16 @@ public class TransactionBehaviorTests
         InnerCommandHandler.CallCount.Should().Be(1);
         trackingUow.BeginCount.Should().Be(1, "only outer transaction should call BeginTransaction");
         trackingUow.CommitCount.Should().Be(1, "only outer transaction should commit");
+    }
+
+    // --- Test helpers ---
+    private sealed class SaveChangesTrackingUow(List<string> callOrder) : IUnitOfWork
+    {
+        public ValueTask BeginTransactionAsync(CancellationToken cancellationToken) { callOrder.Add("Begin"); return ValueTask.CompletedTask; }
+        public ValueTask CommitAsync(CancellationToken cancellationToken) { callOrder.Add("Commit"); return ValueTask.CompletedTask; }
+        public ValueTask RollbackAsync(CancellationToken cancellationToken) { callOrder.Add("Rollback"); return ValueTask.CompletedTask; }
+        public ValueTask SaveChangesAsync(CancellationToken cancellationToken) { callOrder.Add("SaveChanges"); return ValueTask.CompletedTask; }
+        public ValueTask CreateSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask RollbackToSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
     }
 }

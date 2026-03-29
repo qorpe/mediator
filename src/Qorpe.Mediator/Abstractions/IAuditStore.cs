@@ -91,6 +91,15 @@ public interface IUnitOfWork
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     ValueTask RollbackToSavepointAsync(string name, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Flushes pending changes to the database before transaction commit.
+    /// EF Core implementations should call DbContext.SaveChangesAsync here.
+    /// Default implementation is a no-op for backward compatibility.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    ValueTask SaveChangesAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
 }
 
 /// <summary>
