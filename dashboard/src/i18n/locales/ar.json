@@ -7,7 +7,7 @@
     "quickStart": "بداية سريعة"
   },
   "hero": {
-    "badge": "تم اصدار v1.0.0",
+    "badge": "تم الاصدار",
     "title": "وسيط CQRS للمؤسسات",
     "titleHighlight": "لمنصة .NET",
     "description": "بديل عالي الاداء وغني بالميزات لـ MediatR مع فصل CQRS صريح ونمط Result مدمج و11 سلوك خط انابيب موجه بالسمات.",

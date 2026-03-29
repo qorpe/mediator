@@ -12,12 +12,13 @@ function GithubIcon({ className }: { className?: string }) {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { heroStats, APP_VERSION } from "@/data/config";
 
 const stats = [
-  { key: "fasterPublish", value: "66%", icon: Zap },
-  { key: "lessMemory", value: "4.7x", icon: Cpu },
-  { key: "pipelineBehaviors", value: "11", icon: Layers },
-  { key: "testsCoverage", value: "221", icon: FlaskConical },
+  { key: "fasterPublish", value: heroStats.fasterPublish, icon: Zap },
+  { key: "lessMemory", value: heroStats.lessMemory, icon: Cpu },
+  { key: "pipelineBehaviors", value: heroStats.pipelineBehaviors, icon: Layers },
+  { key: "testsCoverage", value: heroStats.testsCoverage, icon: FlaskConical },
 ];
 
 export function HeroSection() {
@@ -43,7 +44,7 @@ export function HeroSection() {
           >
             <Badge variant="brand" className="mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
-              {t("hero.badge")}
+              v{APP_VERSION} {t("hero.badge")}
             </Badge>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6 break-words">
