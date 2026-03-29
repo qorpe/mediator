@@ -1,10 +1,10 @@
 {
   "nav": {
-    "features": "Caracteristicas",
+    "features": "Características",
     "benchmarks": "Rendimiento",
     "pipeline": "Pipeline",
-    "comparison": "Comparacion",
-    "quickStart": "Inicio rapido"
+    "comparison": "Comparación",
+    "quickStart": "Inicio rápido"
   },
   "hero": {
     "badge": "v1.0.0 Publicado",
@@ -16,7 +16,7 @@
     "installCommand": "dotnet add package Qorpe.Mediator"
   },
   "stats": {
-    "fasterPublish": "Publish mas rapido",
+    "fasterPublish": "Publish mas rápido",
     "lessMemory": "Menos memoria",
     "pipelineBehaviors": "Behaviors Pipeline",
     "testsCoverage": "Pruebas"
@@ -59,7 +59,7 @@
     "allocated": "Asignado",
     "qorpe": "Qorpe",
     "mediatr": "MediatR",
-    "faster": "mas rapido",
+    "faster": "mas rápido",
     "lessMemory": "menos memoria"
   },
   "pipeline": {
@@ -115,7 +115,7 @@
   "comparison": {
     "title": "Por que Qorpe Mediator?",
     "subtitle": "Una comparacion detallada con MediatR para ayudarte a tomar una decision informada.",
-    "feature": "Caracteristica",
+    "feature": "Característica",
     "qorpe": "Qorpe Mediator",
     "mediatr": "MediatR v12",
     "items": {
@@ -139,7 +139,7 @@
       "custom": "Solo personalizado",
       "native": "Nativo",
       "thirdParty": "Terceros",
-      "faster": "Hasta 66% mas rapido",
+      "faster": "Hasta 66% mas rápido",
       "baseline": "Linea base",
       "builtIn": "Integrado",
       "notification": "Via Notification"
@@ -157,8 +157,8 @@
   "footer": {
     "description": "Biblioteca CQRS Mediator empresarial para .NET. Construida con enfoque en rendimiento y experiencia del desarrollador.",
     "resources": "Recursos",
-    "documentation": "Documentacion",
-    "migrationGuide": "Guia de migracion",
+    "documentation": "Documentación",
+    "migrationGuide": "Guia de migración",
     "changelog": "Registro de cambios",
     "community": "Comunidad",
     "github": "GitHub",
@@ -176,9 +176,9 @@
   "language": {
     "en": "English",
     "de": "Deutsch",
-    "tr": "Turkce",
-    "fr": "Francais",
-    "es": "Espanol",
-    "ar": "Arabic"
+    "tr": "Türkçe",
+    "fr": "Français",
+    "es": "Español",
+    "ar": "العربية"
   }
 }

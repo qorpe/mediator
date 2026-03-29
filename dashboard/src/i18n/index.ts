@@ -12,9 +12,9 @@ import ar from "./locales/ar.json";
 export const languages = [
   { code: "en", name: "English", dir: "ltr" as const },
   { code: "de", name: "Deutsch", dir: "ltr" as const },
-  { code: "tr", name: "Turkce", dir: "ltr" as const },
-  { code: "fr", name: "Francais", dir: "ltr" as const },
-  { code: "es", name: "Espanol", dir: "ltr" as const },
+  { code: "tr", name: "T\u00fcrk\u00e7e", dir: "ltr" as const },
+  { code: "fr", name: "Fran\u00e7ais", dir: "ltr" as const },
+  { code: "es", name: "Espa\u00f1ol", dir: "ltr" as const },
   { code: "ar", name: "العربية", dir: "rtl" as const },
 ] as const;
 

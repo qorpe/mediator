@@ -1,130 +1,130 @@
 {
   "nav": {
-    "features": "Ozellikler",
+    "features": "Özellikler",
     "benchmarks": "Performans",
     "pipeline": "Pipeline",
-    "comparison": "Karsilastirma",
-    "quickStart": "Hizli Baslangic"
+    "comparison": "Karşılaştırma",
+    "quickStart": "Hızlı Başlangıç"
   },
   "hero": {
-    "badge": "v1.0.0 Yayinlandi",
+    "badge": "v1.0.0 Yayınlandı",
     "title": "Enterprise CQRS Mediator",
-    "titleHighlight": ".NET icin",
-    "description": "Acik CQRS ayirimi, yerlesik Result pattern ve 11 attribute-driven pipeline behavior ile MediatR'a yuksek performansli, zengin ozellikli bir alternatif.",
-    "getStarted": "Basla",
-    "viewOnGithub": "GitHub'da Gor",
+    "titleHighlight": ".NET için",
+    "description": "Açık CQRS ayrımı, yerleşik Result pattern ve 11 attribute-driven pipeline behavior ile MediatR'a yüksek performanslı, zengin özellikli bir alternatif.",
+    "getStarted": "Başla",
+    "viewOnGithub": "GitHub'da Gör",
     "installCommand": "dotnet add package Qorpe.Mediator"
   },
   "stats": {
-    "fasterPublish": "Daha Hizli Publish",
+    "fasterPublish": "Daha Hızlı Publish",
     "lessMemory": "Daha Az Bellek",
     "pipelineBehaviors": "Pipeline Behavior",
     "testsCoverage": "Test"
   },
   "features": {
-    "title": "Uretim Icin Tasarlandi",
-    "subtitle": "CQRS pattern ile saglam, surdurulebilir .NET uygulamalari olusturmak icin ihtiyaciniz olan her sey.",
+    "title": "Üretim İçin Tasarlandı",
+    "subtitle": "CQRS pattern ile sağlam, sürdürülebilir .NET uygulamaları oluşturmak için ihtiyacınız olan her şey.",
     "cqrs": {
-      "title": "Acik CQRS Tipleri",
-      "description": "Ayri ICommand<T> ve IQuery<T> arayuzleri, derleme zamaninda mimari sinirlari zorlar."
+      "title": "Açık CQRS Tipleri",
+      "description": "Ayrı ICommand<T> ve IQuery<T> arayüzleri, derleme zamanında mimari sınırları zorlar."
     },
     "result": {
       "title": "Result Pattern",
-      "description": "Map, Bind, Match islemleri ile fonksiyonel Result<T>. Kontrol akisi icin exception yok."
+      "description": "Map, Bind, Match işlemleri ile fonksiyonel Result<T>. Kontrol akışı için exception yok."
     },
     "pipeline": {
       "title": "11 Pipeline Behavior",
-      "description": "Audit, loglama, dogrulama, onbellekleme, yeniden deneme ve daha fazlasi icin attribute-driven behavior'lar."
+      "description": "Audit, loglama, doğrulama, önbellekleme, yeniden deneme ve daha fazlası için attribute-driven behavior'lar."
     },
     "performance": {
-      "title": "Yuksek Performans",
-      "description": "Derlenenmis expression tree'ler ve ValueTask tabanli async ile sifir-reflection hot path."
+      "title": "Yüksek Performans",
+      "description": "Derlenmiş expression tree'ler ve ValueTask tabanlı async ile sıfır-reflection hot path."
     },
     "aspnetcore": {
       "title": "ASP.NET Core Entegrasyonu",
-      "description": "[HttpEndpoint] attribute ile deklaratif HTTP endpoint esleme ve otomatik kesif."
+      "description": "[HttpEndpoint] attribute ile deklaratif HTTP endpoint eşleme ve otomatik keşif."
     },
     "streaming": {
-      "title": "Streaming Destegi",
-      "description": "Gercek zamanli veri icin tam pipeline behavior destegi ile IAsyncEnumerable streaming."
+      "title": "Streaming Desteği",
+      "description": "Gerçek zamanlı veri için tam pipeline behavior desteği ile IAsyncEnumerable streaming."
     }
   },
   "benchmarks": {
-    "title": "Onemli Olan Performans",
-    "subtitle": "BenchmarkDotNet ile MediatR v12'ye karsi benchmark. Gercek sayilar, gercek is yukleri.",
-    "sendPerformance": "Send Performansi",
-    "publishPerformance": "Publish Performansi",
-    "memoryUsage": "Bellek Kullanimi",
+    "title": "Önemli Olan Performans",
+    "subtitle": "BenchmarkDotNet ile MediatR v12'ye karşı benchmark. Gerçek sayılar, gerçek iş yükleri.",
+    "sendPerformance": "Send Performansı",
+    "publishPerformance": "Publish Performansı",
+    "memoryUsage": "Bellek Kullanımı",
     "mean": "Ortalama",
-    "allocated": "Ayrilan",
+    "allocated": "Ayrılan",
     "qorpe": "Qorpe",
     "mediatr": "MediatR",
-    "faster": "daha hizli",
+    "faster": "daha hızlı",
     "lessMemory": "daha az bellek"
   },
   "pipeline": {
-    "title": "Guclu Pipeline Mimarisi",
-    "subtitle": "Acik siralama ile 11 attribute-driven behavior. Sadece command ve query'lerinizi dekore edin.",
+    "title": "Güçlü Pipeline Mimarisi",
+    "subtitle": "Açık sıralama ile 11 attribute-driven behavior. Sadece command ve query'lerinizi dekore edin.",
     "behaviors": {
       "audit": {
         "title": "Denetim",
-        "description": "Hassas veri maskeleme ile asenkron toplu isleme"
+        "description": "Hassas veri maskeleme ile asenkron toplu işleme"
       },
       "logging": {
         "title": "Loglama",
-        "description": "Otomatik maskeleme ile yapilandirilmis loglama"
+        "description": "Otomatik maskeleme ile yapılandırılmış loglama"
       },
       "exception": {
-        "title": "Istisna Yonetimi",
-        "description": "Yapilandirilmis hata yakalama ile guvenlik agi"
+        "title": "İstisna Yönetimi",
+        "description": "Yapılandırılmış hata yakalama ile güvenlik ağı"
       },
       "authorization": {
         "title": "Yetkilendirme",
-        "description": "Rol ve politika tabanli erisim kontrolu"
+        "description": "Rol ve politika tabanlı erişim kontrolü"
       },
       "validation": {
-        "title": "Dogrulama",
-        "description": "Coklu dogrulayici destegi ile FluentValidation"
+        "title": "Doğrulama",
+        "description": "Çoklu doğrulayıcı desteği ile FluentValidation"
       },
       "idempotency": {
-        "title": "Idempotentlik",
-        "description": "TTL ile SHA256 tabanli tekrar onleme"
+        "title": "İdempotentlik",
+        "description": "TTL ile SHA256 tabanlı tekrar önleme"
       },
       "transaction": {
-        "title": "Islem",
+        "title": "İşlem",
         "description": "Otomatik geri alma ile sadece command"
       },
       "performanceMon": {
         "title": "Performans",
-        "description": "Yapilandirabilir esik izleme"
+        "description": "Yapılandırılabilir eşik izleme"
       },
       "retry": {
         "title": "Yeniden Deneme",
-        "description": "Jitter ile ustel geri cekilme"
+        "description": "Jitter ile üssel geri çekilme"
       },
       "caching": {
-        "title": "Onbellekleme",
-        "description": "Stampede onleme ile sadece query"
+        "title": "Önbellekleme",
+        "description": "Stampede önleme ile sadece query"
       },
       "cacheInvalidation": {
-        "title": "Onbellek Gecersiz Kilma",
-        "description": "Anahtar on eki ile command gudumlugu"
+        "title": "Önbellek Geçersiz Kılma",
+        "description": "Anahtar ön eki ile command güdümlü"
       }
     }
   },
   "comparison": {
     "title": "Neden Qorpe Mediator?",
-    "subtitle": "Bilingli bir karar vermenize yardimci olmak icin MediatR ile ayrintili karsilastirma.",
-    "feature": "Ozellik",
+    "subtitle": "Bilinçli bir karar vermenize yardımcı olmak için MediatR ile ayrıntılı karşılaştırma.",
+    "feature": "Özellik",
     "qorpe": "Qorpe Mediator",
     "mediatr": "MediatR v12",
     "items": {
       "license": "Lisans",
-      "cqrsTypes": "Acik CQRS Tipleri",
-      "resultPattern": "Yerlesik Result Pattern",
+      "cqrsTypes": "Açık CQRS Tipleri",
+      "resultPattern": "Yerleşik Result Pattern",
       "pipelineBehaviors": "Pipeline Behavior'lar",
-      "httpEndpoints": "HTTP Endpoint Esleme",
-      "streaming": "Streaming Destegi",
+      "httpEndpoints": "HTTP Endpoint Eşleme",
+      "streaming": "Streaming Desteği",
       "performance": "Performans",
       "domainEvents": "Domain Event'ler",
       "fluentValidation": "FluentValidation Entegrasyonu"
@@ -133,52 +133,52 @@
       "mitLicense": "MIT",
       "apacheLicense": "Apache 2.0",
       "yes": "Evet",
-      "no": "Hayir",
-      "partial": "Kismi",
-      "eleven": "11 Yerlesik",
-      "custom": "Sadece Ozel",
+      "no": "Hayır",
+      "partial": "Kısmi",
+      "eleven": "11 Yerleşik",
+      "custom": "Sadece Özel",
       "native": "Yerel",
-      "thirdParty": "Ucuncu Parti",
-      "faster": "%66'ya kadar daha hizli",
+      "thirdParty": "Üçüncü Parti",
+      "faster": "%66'ya kadar daha hızlı",
       "baseline": "Temel",
-      "builtIn": "Yerlesik",
+      "builtIn": "Yerleşik",
       "notification": "Notification ile"
     }
   },
   "quickStart": {
-    "title": "Dakikalar Icinde Baslayin",
-    "subtitle": "Qorpe Mediator'u projenize ekleyin ve hemen CQRS pattern'leri ile gelistirmeye baslayin.",
-    "step1": "Paketi yukleyin",
+    "title": "Dakikalar İçinde Başlayın",
+    "subtitle": "Qorpe Mediator'ı projenize ekleyin ve hemen CQRS pattern'leri ile geliştirmeye başlayın.",
+    "step1": "Paketi yükleyin",
     "step2": "Servisleri kaydedin",
-    "step3": "Bir command tanimlayin",
-    "step4": "Isleyin ve gonderin",
-    "copied": "Kopyalandi!"
+    "step3": "Bir command tanımlayın",
+    "step4": "İşleyin ve gönderin",
+    "copied": "Kopyalandı!"
   },
   "footer": {
-    "description": ".NET icin enterprise-grade CQRS Mediator kutuphanesi. Performans ve gelistirici deneyimi odakli.",
+    "description": ".NET için enterprise-grade CQRS Mediator kütüphanesi. Performans ve geliştirici deneyimi odaklı.",
     "resources": "Kaynaklar",
-    "documentation": "Dokumantasyon",
-    "migrationGuide": "Gecis Rehberi",
-    "changelog": "Degisiklik Gunlugu",
+    "documentation": "Dokümantasyon",
+    "migrationGuide": "Geçiş Rehberi",
+    "changelog": "Değişiklik Günlüğü",
     "community": "Topluluk",
     "github": "GitHub",
     "issues": "Sorunlar",
-    "discussions": "Tartismalar",
+    "discussions": "Tartışmalar",
     "nuget": "NuGet Paketi",
     "legal": "Yasal",
-    "mitLicense": "MIT Lisansi",
-    "rights": "Tum haklari saklidir."
+    "mitLicense": "MIT Lisansı",
+    "rights": "Tüm hakları saklıdır."
   },
   "theme": {
-    "light": "Acik",
+    "light": "Açık",
     "dark": "Koyu"
   },
   "language": {
     "en": "English",
     "de": "Deutsch",
-    "tr": "Turkce",
-    "fr": "Francais",
-    "es": "Espanol",
-    "ar": "Arabic"
+    "tr": "Türkçe",
+    "fr": "Français",
+    "es": "Español",
+    "ar": "العربية"
   }
 }
