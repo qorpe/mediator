@@ -26,17 +26,20 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
 
     private readonly IUnitOfWork? _unitOfWork;
+    private readonly IPostCommitTaskQueue? _postCommitQueue;
     private readonly ILogger<TransactionBehavior<TRequest, TResponse>> _logger;
     private readonly TransactionBehaviorOptions _options;
 
     public TransactionBehavior(
         ILogger<TransactionBehavior<TRequest, TResponse>> logger,
         IOptions<TransactionBehaviorOptions> options,
-        IUnitOfWork? unitOfWork = null)
+        IUnitOfWork? unitOfWork = null,
+        IPostCommitTaskQueue? postCommitQueue = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _unitOfWork = unitOfWork;
+        _postCommitQueue = postCommitQueue;
     }
 
     public async ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -86,6 +89,13 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         {
             await _unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Committed transaction for {RequestName}", requestName);
+
+            // Execute post-commit tasks after successful commit
+            if (_postCommitQueue is not null)
+            {
+                await _postCommitQueue.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
             return response;
         }
         catch (Exception ex)

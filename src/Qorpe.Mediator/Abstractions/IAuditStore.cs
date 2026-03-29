@@ -94,6 +94,28 @@ public interface IUnitOfWork
 }
 
 /// <summary>
+/// Defines a queue for fire-and-forget tasks that execute after a transaction commits.
+/// Register as Scoped in DI. Handlers enqueue tasks during execution, and
+/// TransactionBehavior calls ExecuteAsync after successful commit.
+/// </summary>
+public interface IPostCommitTaskQueue
+{
+    /// <summary>
+    /// Enqueues a task to run after the transaction commits.
+    /// </summary>
+    /// <param name="task">The async task to execute post-commit.</param>
+    void Enqueue(Func<CancellationToken, Task> task);
+
+    /// <summary>
+    /// Executes all queued tasks sequentially. Failures are logged but do not throw.
+    /// Called by TransactionBehavior after successful commit.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task ExecuteAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// Defines the idempotency store for checking duplicate requests.
 /// </summary>
 public interface IIdempotencyStore
