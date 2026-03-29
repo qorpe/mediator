@@ -31,6 +31,22 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
     public ValueTask<TResponse> HandleTyped(TRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
     {
+        // Check per-container pipeline probe cache for fast path
+        var probeCache = serviceProvider.GetService<PipelineProbeCache>();
+        if (probeCache != null && probeCache.TryGetHandlerOnly(typeof(TRequest), out var isHandlerOnly) && isHandlerOnly)
+        {
+            // FAST PATH: no processors, no behaviors — 1 DI call, no closure, no delegate
+            var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>()
+                ?? throw new HandlerNotFoundException(typeof(TRequest));
+            return handler.Handle(request, cancellationToken);
+        }
+
+        return HandleWithPipeline(request, serviceProvider, cancellationToken, probeCache);
+    }
+
+    private ValueTask<TResponse> HandleWithPipeline(TRequest request, IServiceProvider serviceProvider,
+        CancellationToken cancellationToken, PipelineProbeCache? probeCache)
+    {
         // Resolve handler — fully typed, single DI call, zero reflection
         var handler = serviceProvider.GetService<IRequestHandler<TRequest, TResponse>>();
         if (handler is null)
@@ -64,6 +80,8 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
         // Fast path: no behaviors registered
         if (behaviors is null)
         {
+            // Cache the probe result for subsequent calls
+            probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
             return handlerDelegate();
         }
 
@@ -81,6 +99,8 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
             behaviorCount = col.Count;
             if (behaviorCount == 0)
             {
+                // Cache the probe result for subsequent calls
+                probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
                 return handlerDelegate();
             }
             behaviorArray = new IPipelineBehavior<TRequest, TResponse>[behaviorCount];
@@ -95,8 +115,13 @@ internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandle
 
         if (behaviorCount == 0)
         {
+            // Cache the probe result for subsequent calls
+            probeCache?.SetHandlerOnly(typeof(TRequest), !hasPreProcessors && !hasPostProcessors);
             return handlerDelegate();
         }
+
+        // Has pipeline elements — cache as non-handler-only
+        probeCache?.SetHandlerOnly(typeof(TRequest), false);
 
         // Sort by IBehaviorOrder.Order if any behaviors implement it
         SortBehaviorsByOrder(behaviorArray, behaviorCount);
