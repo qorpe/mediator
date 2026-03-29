@@ -100,18 +100,31 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
         return await next().ConfigureAwait(false);
     }
 
-    private static TResponse CreateUnauthorizedResult()
+    // Cached delegate for Result<T>.Failure(Error) — avoids reflection on every auth failure
+    private static readonly Func<Error, TResponse>? CachedFailureFactory = BuildFailureFactory();
+
+    private static Func<Error, TResponse>? BuildFailureFactory()
     {
         if (typeof(TResponse) == typeof(Result))
         {
-            return (TResponse)(object)Result.Failure(Error.Unauthorized("Auth.Unauthorized", "Authentication is required."));
+            return error => (TResponse)(object)Result.Failure(error);
         }
 
         if (typeof(TResponse).IsGenericType && typeof(TResponse).GetGenericTypeDefinition() == typeof(Result<>))
         {
-            var error = Error.Unauthorized("Auth.Unauthorized", "Authentication is required.");
             var failureMethod = typeof(TResponse).GetMethod("Failure", new[] { typeof(Error) });
-            return (TResponse)failureMethod!.Invoke(null, new object[] { error })!;
+            if (failureMethod is null) return null;
+            return error => (TResponse)failureMethod.Invoke(null, new object[] { error })!;
+        }
+
+        return null;
+    }
+
+    private static TResponse CreateUnauthorizedResult()
+    {
+        if (CachedFailureFactory is not null)
+        {
+            return CachedFailureFactory(Error.Unauthorized("Auth.Unauthorized", "Authentication is required."));
         }
 
         throw new UnauthorizedAccessException("Authentication is required.");
@@ -119,16 +132,9 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
 
     private static TResponse CreateForbiddenResult()
     {
-        if (typeof(TResponse) == typeof(Result))
+        if (CachedFailureFactory is not null)
         {
-            return (TResponse)(object)Result.Failure(Error.Forbidden("Auth.Forbidden", "You do not have permission to perform this action."));
-        }
-
-        if (typeof(TResponse).IsGenericType && typeof(TResponse).GetGenericTypeDefinition() == typeof(Result<>))
-        {
-            var error = Error.Forbidden("Auth.Forbidden", "You do not have permission to perform this action.");
-            var failureMethod = typeof(TResponse).GetMethod("Failure", new[] { typeof(Error) });
-            return (TResponse)failureMethod!.Invoke(null, new object[] { error })!;
+            return CachedFailureFactory(Error.Forbidden("Auth.Forbidden", "You do not have permission to perform this action."));
         }
 
         throw new UnauthorizedAccessException("You do not have permission to perform this action.");
