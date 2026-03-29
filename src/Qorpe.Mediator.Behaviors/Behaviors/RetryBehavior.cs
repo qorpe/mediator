@@ -133,9 +133,11 @@ public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
         }
 
         // Retryable: TimeoutException, HttpRequestException, TaskCanceledException (non-user)
-        return ex is TimeoutException
-            or HttpRequestException
-            or (TaskCanceledException and not OperationCanceledException);
+        // Note: TaskCanceledException inherits from OperationCanceledException, so we check
+        // whether the exception's token differs from the user's token (HttpClient timeouts
+        // set CancellationToken.None, not the user's token).
+        return ex is TimeoutException or HttpRequestException
+            || (ex is TaskCanceledException tce && tce.CancellationToken != cancellationToken);
     }
 
     private static int CalculateDelay(int attempt, int initialDelayMs, bool useExponentialBackoff, int maxBackoffMs)
