@@ -1,8 +1,11 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Qorpe.Mediator.Abstractions;
+using Qorpe.Mediator.Behaviors.Attributes;
 using Qorpe.Mediator.Behaviors.Behaviors;
 using Qorpe.Mediator.Behaviors.Configuration;
+using Qorpe.Mediator.DependencyInjection;
 using Qorpe.Mediator.Results;
 using Qorpe.Mediator.UnitTests.Helpers;
 
@@ -145,5 +148,141 @@ public class TransactionBehaviorTests
 
         // Commit exception should be preserved, not the rollback one
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*commit*");
+    }
+
+    // --- Nested Transaction Tests ---
+
+    [Fact]
+    public async Task Nested_Transaction_Should_Not_Call_BeginTransaction_Twice()
+    {
+        var uow = Substitute.For<IUnitOfWork>();
+        var outerBehavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+
+        // Outer behavior starts transaction, inner "nested" call should detect and skip
+        RequestHandlerDelegate<Result> next = async () =>
+        {
+            // Simulate nested command dispatch — another TransactionBehavior runs inside
+            var innerBehavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+            return await innerBehavior.Handle(
+                new TransactionalCommand("inner"),
+                () => new ValueTask<Result>(Result.Success()),
+                CancellationToken.None);
+        };
+
+        var result = await outerBehavior.Handle(new TransactionalCommand("outer"), next, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        // BeginTransaction should be called exactly ONCE — by the outer behavior only
+        await uow.Received(1).BeginTransactionAsync(Arg.Any<CancellationToken>());
+        await uow.Received(1).CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Nested_Transaction_Inner_Failure_Should_Rollback_Outer()
+    {
+        var uow = Substitute.For<IUnitOfWork>();
+        var outerBehavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+
+        RequestHandlerDelegate<Result> next = async () =>
+        {
+            var innerBehavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+            return await innerBehavior.Handle(
+                new TransactionalCommand("inner"),
+                () => throw new InvalidOperationException("inner failed"),
+                CancellationToken.None);
+        };
+
+        var act = async () => await outerBehavior.Handle(
+            new TransactionalCommand("outer"), next, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("inner failed");
+        await uow.Received(1).RollbackAsync(Arg.Any<CancellationToken>());
+        await uow.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task After_Nested_Transaction_Completes_Flag_Should_Reset()
+    {
+        var uow = Substitute.For<IUnitOfWork>();
+        var behavior = new TransactionBehavior<TransactionalCommand, Result>(_logger, _options, uow);
+
+        // First call — starts and commits transaction
+        await behavior.Handle(
+            new TransactionalCommand("first"),
+            () => new ValueTask<Result>(Result.Success()),
+            CancellationToken.None);
+
+        // Second call — should start NEW transaction, not think it's nested
+        await behavior.Handle(
+            new TransactionalCommand("second"),
+            () => new ValueTask<Result>(Result.Success()),
+            CancellationToken.None);
+
+        await uow.Received(2).BeginTransactionAsync(Arg.Any<CancellationToken>());
+        await uow.Received(2).CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    // --- Full Integration: Nested via IMediator ---
+
+    [Transactional]
+    public sealed record OuterCommand(string Data) : ICommand<Result>;
+    [Transactional]
+    public sealed record InnerCommand(string Data) : ICommand<Result>;
+
+    public sealed class OuterCommandHandler(IMediator mediator) : ICommandHandler<OuterCommand>
+    {
+        public async ValueTask<Result> Handle(OuterCommand request, CancellationToken cancellationToken)
+        {
+            return await mediator.Send(new InnerCommand("nested-" + request.Data), cancellationToken);
+        }
+    }
+
+    public sealed class InnerCommandHandler : ICommandHandler<InnerCommand>
+    {
+        public static int CallCount;
+        public ValueTask<Result> Handle(InnerCommand request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref CallCount);
+            return new ValueTask<Result>(Result.Success());
+        }
+    }
+
+    public sealed class TrackingUnitOfWork : IUnitOfWork
+    {
+        private int _beginCount;
+        private int _commitCount;
+        private int _rollbackCount;
+        public int BeginCount => _beginCount;
+        public int CommitCount => _commitCount;
+        public int RollbackCount => _rollbackCount;
+
+        public ValueTask BeginTransactionAsync(CancellationToken cancellationToken) { Interlocked.Increment(ref _beginCount); return ValueTask.CompletedTask; }
+        public ValueTask CommitAsync(CancellationToken cancellationToken) { Interlocked.Increment(ref _commitCount); return ValueTask.CompletedTask; }
+        public ValueTask RollbackAsync(CancellationToken cancellationToken) { Interlocked.Increment(ref _rollbackCount); return ValueTask.CompletedTask; }
+        public ValueTask CreateSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+        public ValueTask RollbackToSavepointAsync(string name, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Integration_Nested_Command_Via_Mediator_Should_Use_Single_Transaction()
+    {
+        InnerCommandHandler.CallCount = 0;
+        var trackingUow = new TrackingUnitOfWork();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQorpeMediator(cfg => cfg.RegisterServicesFromAssembly(typeof(TransactionBehaviorTests).Assembly));
+        services.AddSingleton<IUnitOfWork>(trackingUow);
+        services.Configure<TransactionBehaviorOptions>(_ => { });
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
+
+        var mediator = services.BuildServiceProvider().GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(new OuterCommand("test"));
+
+        result.IsSuccess.Should().BeTrue();
+        InnerCommandHandler.CallCount.Should().Be(1);
+        trackingUow.BeginCount.Should().Be(1, "only outer transaction should call BeginTransaction");
+        trackingUow.CommitCount.Should().Be(1, "only outer transaction should commit");
     }
 }
