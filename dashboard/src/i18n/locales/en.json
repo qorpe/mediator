@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "features": "Features",
+    "benchmarks": "Benchmarks",
+    "pipeline": "Pipeline",
+    "comparison": "Comparison",
+    "quickStart": "Quick Start"
+  },
+  "hero": {
+    "badge": "v1.0.0 Released",
+    "title": "Enterprise-Grade CQRS Mediator",
+    "titleHighlight": "for .NET",
+    "description": "A high-performance, feature-rich alternative to MediatR with explicit CQRS separation, built-in Result pattern, and 11 attribute-driven pipeline behaviors.",
+    "getStarted": "Get Started",
+    "viewOnGithub": "View on GitHub",
+    "installCommand": "dotnet add package Qorpe.Mediator"
+  },
+  "stats": {
+    "fasterPublish": "Faster Publish",
+    "lessMemory": "Less Memory",
+    "pipelineBehaviors": "Pipeline Behaviors",
+    "testsCoverage": "Tests"
+  },
+  "features": {
+    "title": "Built for Production",
+    "subtitle": "Everything you need to build robust, maintainable .NET applications with CQRS pattern.",
+    "cqrs": {
+      "title": "Explicit CQRS Types",
+      "description": "Separate ICommand<T> and IQuery<T> interfaces enforce architectural boundaries at compile time."
+    },
+    "result": {
+      "title": "Result Pattern",
+      "description": "Functional Result<T> with Map, Bind, Match operations. No exceptions for control flow."
+    },
+    "pipeline": {
+      "title": "11 Pipeline Behaviors",
+      "description": "Attribute-driven behaviors for audit, logging, validation, caching, retry, and more."
+    },
+    "performance": {
+      "title": "High Performance",
+      "description": "Zero-reflection hot path with compiled expression trees and ValueTask-based async."
+    },
+    "aspnetcore": {
+      "title": "ASP.NET Core Integration",
+      "description": "Declarative HTTP endpoint mapping with [HttpEndpoint] attribute and auto-discovery."
+    },
+    "streaming": {
+      "title": "Streaming Support",
+      "description": "IAsyncEnumerable streaming with full pipeline behavior support for real-time data."
+    }
+  },
+  "benchmarks": {
+    "title": "Performance That Matters",
+    "subtitle": "Benchmarked against MediatR v12 with BenchmarkDotNet. Real numbers, real workloads.",
+    "sendPerformance": "Send Performance",
+    "publishPerformance": "Publish Performance",
+    "memoryUsage": "Memory Usage",
+    "mean": "Mean",
+    "allocated": "Allocated",
+    "qorpe": "Qorpe",
+    "mediatr": "MediatR",
+    "faster": "faster",
+    "lessMemory": "less memory"
+  },
+  "pipeline": {
+    "title": "Powerful Pipeline Architecture",
+    "subtitle": "11 attribute-driven behaviors with explicit ordering. Just decorate your commands and queries.",
+    "behaviors": {
+      "audit": {
+        "title": "Audit",
+        "description": "Async batching with sensitive data masking"
+      },
+      "logging": {
+        "title": "Logging",
+        "description": "Structured logging with auto-masking"
+      },
+      "exception": {
+        "title": "Exception Handling",
+        "description": "Safety net with structured error capture"
+      },
+      "authorization": {
+        "title": "Authorization",
+        "description": "Role and policy-based access control"
+      },
+      "validation": {
+        "title": "Validation",
+        "description": "FluentValidation with multi-validator support"
+      },
+      "idempotency": {
+        "title": "Idempotency",
+        "description": "SHA256-based deduplication with TTL"
+      },
+      "transaction": {
+        "title": "Transaction",
+        "description": "Command-only with automatic rollback"
+      },
+      "performanceMon": {
+        "title": "Performance",
+        "description": "Configurable threshold monitoring"
+      },
+      "retry": {
+        "title": "Retry",
+        "description": "Exponential backoff with jitter"
+      },
+      "caching": {
+        "title": "Caching",
+        "description": "Query-only with stampede prevention"
+      },
+      "cacheInvalidation": {
+        "title": "Cache Invalidation",
+        "description": "Command-driven by key prefix"
+      }
+    }
+  },
+  "comparison": {
+    "title": "Why Qorpe Mediator?",
+    "subtitle": "A detailed comparison with MediatR to help you make an informed decision.",
+    "feature": "Feature",
+    "qorpe": "Qorpe Mediator",
+    "mediatr": "MediatR v12",
+    "items": {
+      "license": "License",
+      "cqrsTypes": "Explicit CQRS Types",
+      "resultPattern": "Built-in Result Pattern",
+      "pipelineBehaviors": "Pipeline Behaviors",
+      "httpEndpoints": "HTTP Endpoint Mapping",
+      "streaming": "Streaming Support",
+      "performance": "Performance",
+      "domainEvents": "Domain Events",
+      "fluentValidation": "FluentValidation Integration"
+    },
+    "values": {
+      "mitLicense": "MIT",
+      "apacheLicense": "Apache 2.0",
+      "yes": "Yes",
+      "no": "No",
+      "partial": "Partial",
+      "eleven": "11 Built-in",
+      "custom": "Custom Only",
+      "native": "Native",
+      "thirdParty": "Third-party",
+      "faster": "Up to 66% faster",
+      "baseline": "Baseline",
+      "builtIn": "Built-in",
+      "notification": "Via Notification"
+    }
+  },
+  "quickStart": {
+    "title": "Get Started in Minutes",
+    "subtitle": "Add Qorpe Mediator to your project and start building with CQRS patterns right away.",
+    "step1": "Install the package",
+    "step2": "Register services",
+    "step3": "Define a command",
+    "step4": "Handle & dispatch",
+    "copied": "Copied!"
+  },
+  "footer": {
+    "description": "Enterprise-grade CQRS Mediator library for .NET. Built with performance and developer experience in mind.",
+    "resources": "Resources",
+    "documentation": "Documentation",
+    "migrationGuide": "Migration Guide",
+    "changelog": "Changelog",
+    "community": "Community",
+    "github": "GitHub",
+    "issues": "Issues",
+    "discussions": "Discussions",
+    "nuget": "NuGet Package",
+    "legal": "Legal",
+    "mitLicense": "MIT License",
+    "rights": "All rights reserved."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch",
+    "tr": "Turkish",
+    "fr": "French",
+    "es": "Spanish",
+    "ar": "Arabic"
+  }
+}

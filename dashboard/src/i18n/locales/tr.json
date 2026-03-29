@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "features": "Ozellikler",
+    "benchmarks": "Performans",
+    "pipeline": "Pipeline",
+    "comparison": "Karsilastirma",
+    "quickStart": "Hizli Baslangic"
+  },
+  "hero": {
+    "badge": "v1.0.0 Yayinlandi",
+    "title": "Enterprise CQRS Mediator",
+    "titleHighlight": ".NET icin",
+    "description": "Acik CQRS ayirimi, yerlesik Result pattern ve 11 attribute-driven pipeline behavior ile MediatR'a yuksek performansli, zengin ozellikli bir alternatif.",
+    "getStarted": "Basla",
+    "viewOnGithub": "GitHub'da Gor",
+    "installCommand": "dotnet add package Qorpe.Mediator"
+  },
+  "stats": {
+    "fasterPublish": "Daha Hizli Publish",
+    "lessMemory": "Daha Az Bellek",
+    "pipelineBehaviors": "Pipeline Behavior",
+    "testsCoverage": "Test"
+  },
+  "features": {
+    "title": "Uretim Icin Tasarlandi",
+    "subtitle": "CQRS pattern ile saglam, surdurulebilir .NET uygulamalari olusturmak icin ihtiyaciniz olan her sey.",
+    "cqrs": {
+      "title": "Acik CQRS Tipleri",
+      "description": "Ayri ICommand<T> ve IQuery<T> arayuzleri, derleme zamaninda mimari sinirlari zorlar."
+    },
+    "result": {
+      "title": "Result Pattern",
+      "description": "Map, Bind, Match islemleri ile fonksiyonel Result<T>. Kontrol akisi icin exception yok."
+    },
+    "pipeline": {
+      "title": "11 Pipeline Behavior",
+      "description": "Audit, loglama, dogrulama, onbellekleme, yeniden deneme ve daha fazlasi icin attribute-driven behavior'lar."
+    },
+    "performance": {
+      "title": "Yuksek Performans",
+      "description": "Derlenenmis expression tree'ler ve ValueTask tabanli async ile sifir-reflection hot path."
+    },
+    "aspnetcore": {
+      "title": "ASP.NET Core Entegrasyonu",
+      "description": "[HttpEndpoint] attribute ile deklaratif HTTP endpoint esleme ve otomatik kesif."
+    },
+    "streaming": {
+      "title": "Streaming Destegi",
+      "description": "Gercek zamanli veri icin tam pipeline behavior destegi ile IAsyncEnumerable streaming."
+    }
+  },
+  "benchmarks": {
+    "title": "Onemli Olan Performans",
+    "subtitle": "BenchmarkDotNet ile MediatR v12'ye karsi benchmark. Gercek sayilar, gercek is yukleri.",
+    "sendPerformance": "Send Performansi",
+    "publishPerformance": "Publish Performansi",
+    "memoryUsage": "Bellek Kullanimi",
+    "mean": "Ortalama",
+    "allocated": "Ayrilan",
+    "qorpe": "Qorpe",
+    "mediatr": "MediatR",
+    "faster": "daha hizli",
+    "lessMemory": "daha az bellek"
+  },
+  "pipeline": {
+    "title": "Guclu Pipeline Mimarisi",
+    "subtitle": "Acik siralama ile 11 attribute-driven behavior. Sadece command ve query'lerinizi dekore edin.",
+    "behaviors": {
+      "audit": {
+        "title": "Denetim",
+        "description": "Hassas veri maskeleme ile asenkron toplu isleme"
+      },
+      "logging": {
+        "title": "Loglama",
+        "description": "Otomatik maskeleme ile yapilandirilmis loglama"
+      },
+      "exception": {
+        "title": "Istisna Yonetimi",
+        "description": "Yapilandirilmis hata yakalama ile guvenlik agi"
+      },
+      "authorization": {
+        "title": "Yetkilendirme",
+        "description": "Rol ve politika tabanli erisim kontrolu"
+      },
+      "validation": {
+        "title": "Dogrulama",
+        "description": "Coklu dogrulayici destegi ile FluentValidation"
+      },
+      "idempotency": {
+        "title": "Idempotentlik",
+        "description": "TTL ile SHA256 tabanli tekrar onleme"
+      },
+      "transaction": {
+        "title": "Islem",
+        "description": "Otomatik geri alma ile sadece command"
+      },
+      "performanceMon": {
+        "title": "Performans",
+        "description": "Yapilandirabilir esik izleme"
+      },
+      "retry": {
+        "title": "Yeniden Deneme",
+        "description": "Jitter ile ustel geri cekilme"
+      },
+      "caching": {
+        "title": "Onbellekleme",
+        "description": "Stampede onleme ile sadece query"
+      },
+      "cacheInvalidation": {
+        "title": "Onbellek Gecersiz Kilma",
+        "description": "Anahtar on eki ile command gudumlugu"
+      }
+    }
+  },
+  "comparison": {
+    "title": "Neden Qorpe Mediator?",
+    "subtitle": "Bilingli bir karar vermenize yardimci olmak icin MediatR ile ayrintili karsilastirma.",
+    "feature": "Ozellik",
+    "qorpe": "Qorpe Mediator",
+    "mediatr": "MediatR v12",
+    "items": {
+      "license": "Lisans",
+      "cqrsTypes": "Acik CQRS Tipleri",
+      "resultPattern": "Yerlesik Result Pattern",
+      "pipelineBehaviors": "Pipeline Behavior'lar",
+      "httpEndpoints": "HTTP Endpoint Esleme",
+      "streaming": "Streaming Destegi",
+      "performance": "Performans",
+      "domainEvents": "Domain Event'ler",
+      "fluentValidation": "FluentValidation Entegrasyonu"
+    },
+    "values": {
+      "mitLicense": "MIT",
+      "apacheLicense": "Apache 2.0",
+      "yes": "Evet",
+      "no": "Hayir",
+      "partial": "Kismi",
+      "eleven": "11 Yerlesik",
+      "custom": "Sadece Ozel",
+      "native": "Yerel",
+      "thirdParty": "Ucuncu Parti",
+      "faster": "%66'ya kadar daha hizli",
+      "baseline": "Temel",
+      "builtIn": "Yerlesik",
+      "notification": "Notification ile"
+    }
+  },
+  "quickStart": {
+    "title": "Dakikalar Icinde Baslayin",
+    "subtitle": "Qorpe Mediator'u projenize ekleyin ve hemen CQRS pattern'leri ile gelistirmeye baslayin.",
+    "step1": "Paketi yukleyin",
+    "step2": "Servisleri kaydedin",
+    "step3": "Bir command tanimlayin",
+    "step4": "Isleyin ve gonderin",
+    "copied": "Kopyalandi!"
+  },
+  "footer": {
+    "description": ".NET icin enterprise-grade CQRS Mediator kutuphanesi. Performans ve gelistirici deneyimi odakli.",
+    "resources": "Kaynaklar",
+    "documentation": "Dokumantasyon",
+    "migrationGuide": "Gecis Rehberi",
+    "changelog": "Degisiklik Gunlugu",
+    "community": "Topluluk",
+    "github": "GitHub",
+    "issues": "Sorunlar",
+    "discussions": "Tartismalar",
+    "nuget": "NuGet Paketi",
+    "legal": "Yasal",
+    "mitLicense": "MIT Lisansi",
+    "rights": "Tum haklari saklidir."
+  },
+  "theme": {
+    "light": "Acik",
+    "dark": "Koyu"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch",
+    "tr": "Turkce",
+    "fr": "Francais",
+    "es": "Espanol",
+    "ar": "Arabic"
+  }
+}
