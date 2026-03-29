@@ -405,6 +405,9 @@ internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerW
             }
             else
             {
+                // Sort by IBehaviorOrder.Order if any behaviors implement it
+                SortStreamBehaviorsByOrder(behaviorArray);
+
                 // Build pipeline chain — innermost is the handler
                 StreamHandlerDelegate<TResponse> next = () => handler.Handle(typedRequest, cancellationToken);
 
@@ -423,6 +426,36 @@ internal sealed class StreamHandlerWrapper<TRequest, TResponse> : StreamHandlerW
         {
             yield return item;
         }
+    }
+
+    private static void SortStreamBehaviorsByOrder(IStreamPipelineBehavior<TRequest, TResponse>[] behaviors)
+    {
+        var hasOrdering = false;
+        for (int i = 0; i < behaviors.Length; i++)
+        {
+            if (behaviors[i] is IBehaviorOrder)
+            {
+                hasOrdering = true;
+                break;
+            }
+        }
+
+        if (!hasOrdering) return;
+
+        Array.Sort(behaviors, StreamBehaviorOrderComparer<TRequest, TResponse>.Instance);
+    }
+}
+
+internal sealed class StreamBehaviorOrderComparer<TRequest, TResponse> : IComparer<IStreamPipelineBehavior<TRequest, TResponse>>
+    where TRequest : IStreamRequest<TResponse>
+{
+    public static readonly StreamBehaviorOrderComparer<TRequest, TResponse> Instance = new();
+
+    public int Compare(IStreamPipelineBehavior<TRequest, TResponse>? x, IStreamPipelineBehavior<TRequest, TResponse>? y)
+    {
+        var orderX = x is IBehaviorOrder ox ? ox.Order : int.MaxValue / 2;
+        var orderY = y is IBehaviorOrder oy ? oy.Order : int.MaxValue / 2;
+        return orderX.CompareTo(orderY);
     }
 }
 
