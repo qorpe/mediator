@@ -7,7 +7,7 @@
     "quickStart": "Hızlı Başlangıç"
   },
   "hero": {
-    "badge": "v1.0.0 Yayınlandı",
+    "badge": "Yayınlandı",
     "title": "Enterprise CQRS Mediator",
     "titleHighlight": ".NET için",
     "description": "Açık CQRS ayrımı, yerleşik Result pattern ve 11 attribute-driven pipeline behavior ile MediatR'a yüksek performanslı, zengin özellikli bir alternatif.",

@@ -7,7 +7,7 @@
     "quickStart": "Inicio rápido"
   },
   "hero": {
-    "badge": "v1.0.0 Publicado",
+    "badge": "Publicado",
     "title": "Mediador CQRS Empresarial",
     "titleHighlight": "para .NET",
     "description": "Una alternativa de alto rendimiento y rica en funciones a MediatR con separacion CQRS explicita, patron Result integrado y 11 behaviors de pipeline dirigidos por atributos.",

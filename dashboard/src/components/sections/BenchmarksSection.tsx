@@ -14,6 +14,7 @@ import {
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Card } from "@/components/ui/Card";
 import { sendBenchmarks, publishBenchmarks, memoryBenchmarks } from "@/data/benchmarks";
+import { benchmarkHighlights } from "@/data/config";
 
 type Tab = "send" | "publish" | "memory";
 
@@ -176,15 +177,15 @@ export function BenchmarksSection() {
           {/* Highlight cards */}
           <div className="grid sm:grid-cols-3 gap-4 mt-6">
             <Card variant="glass" className="text-center">
-              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">~66%</div>
+              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">{benchmarkHighlights.fasterPercent}</div>
               <div className="text-sm text-text-secondary mt-1">{t("benchmarks.faster")}</div>
             </Card>
             <Card variant="glass" className="text-center">
-              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">4.7x</div>
+              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">{benchmarkHighlights.lessMemoryMultiplier}</div>
               <div className="text-sm text-text-secondary mt-1">{t("benchmarks.lessMemory")}</div>
             </Card>
             <Card variant="glass" className="text-center">
-              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">0 alloc</div>
+              <div className="text-2xl font-bold text-brand-600 dark:text-brand-400">{benchmarkHighlights.publishHotPath}</div>
               <div className="text-sm text-text-secondary mt-1">Publish Hot Path</div>
             </Card>
           </div>
