@@ -11,6 +11,7 @@ namespace Qorpe.Mediator.Behaviors.Behaviors;
 /// </summary>
 public sealed class PostCommitTaskQueue : IPostCommitTaskQueue
 {
+    private readonly object _lock = new();
     private readonly List<Func<CancellationToken, Task>> _tasks = [];
     private readonly ILogger<PostCommitTaskQueue> _logger;
 
@@ -23,16 +24,19 @@ public sealed class PostCommitTaskQueue : IPostCommitTaskQueue
     public void Enqueue(Func<CancellationToken, Task> task)
     {
         ArgumentNullException.ThrowIfNull(task);
-        _tasks.Add(task);
+        lock (_lock) { _tasks.Add(task); }
     }
 
     /// <inheritdoc />
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        if (_tasks.Count == 0) return;
-
-        var tasks = _tasks.ToList();
-        _tasks.Clear();
+        List<Func<CancellationToken, Task>> tasks;
+        lock (_lock)
+        {
+            if (_tasks.Count == 0) return;
+            tasks = _tasks.ToList();
+            _tasks.Clear();
+        }
 
         _logger.LogDebug("Executing {Count} post-commit tasks", tasks.Count);
 
