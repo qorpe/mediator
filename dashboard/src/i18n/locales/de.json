@@ -7,10 +7,10 @@
     "quickStart": "Schnellstart"
   },
   "hero": {
-    "badge": "v1.0.0 Veroffentlicht",
+    "badge": "v1.0.0 Veröffentlicht",
     "title": "Enterprise-Grade CQRS Mediator",
-    "titleHighlight": "fur .NET",
-    "description": "Eine hochleistungsfahige, funktionsreiche Alternative zu MediatR mit expliziter CQRS-Trennung, integriertem Result-Pattern und 11 attributgesteuerten Pipeline-Behaviors.",
+    "titleHighlight": "für .NET",
+    "description": "Eine hochleistungsfähige, funktionsreiche Alternative zu MediatR mit expliziter CQRS-Trennung, integriertem Result-Pattern und 11 attributgesteuerten Pipeline-Behaviors.",
     "getStarted": "Erste Schritte",
     "viewOnGithub": "Auf GitHub ansehen",
     "installCommand": "dotnet add package Qorpe.Mediator"
@@ -30,11 +30,11 @@
     },
     "result": {
       "title": "Result-Pattern",
-      "description": "Funktionales Result<T> mit Map-, Bind-, Match-Operationen. Keine Exceptions fur den Kontrollfluss."
+      "description": "Funktionales Result<T> mit Map-, Bind-, Match-Operationen. Keine Exceptions für den Kontrollfluss."
     },
     "pipeline": {
       "title": "11 Pipeline-Behaviors",
-      "description": "Attributgesteuerte Behaviors fur Audit, Logging, Validierung, Caching, Retry und mehr."
+      "description": "Attributgesteuerte Behaviors für Audit, Logging, Validierung, Caching, Retry und mehr."
     },
     "performance": {
       "title": "Hohe Leistung",
@@ -45,8 +45,8 @@
       "description": "Deklaratives HTTP-Endpoint-Mapping mit [HttpEndpoint]-Attribut und Auto-Discovery."
     },
     "streaming": {
-      "title": "Streaming-Unterstutzung",
-      "description": "IAsyncEnumerable-Streaming mit voller Pipeline-Behavior-Unterstutzung fur Echtzeitdaten."
+      "title": "Streaming-Unterstützung",
+      "description": "IAsyncEnumerable-Streaming mit voller Pipeline-Behavior-Unterstützung für Echtzeitdaten."
     }
   },
   "benchmarks": {
@@ -84,7 +84,7 @@
       },
       "validation": {
         "title": "Validierung",
-        "description": "FluentValidation mit Multi-Validator-Unterstutzung"
+        "description": "FluentValidation mit Multi-Validator-Unterstützung"
       },
       "idempotency": {
         "title": "Idempotenz",
@@ -92,11 +92,11 @@
       },
       "transaction": {
         "title": "Transaktion",
-        "description": "Nur fur Commands mit automatischem Rollback"
+        "description": "Nur für Commands mit automatischem Rollback"
       },
       "performanceMon": {
         "title": "Leistung",
-        "description": "Konfigurierbare Schwellenwertuberwachung"
+        "description": "Konfigurierbare Schwellenwertüberwachung"
       },
       "retry": {
         "title": "Wiederholung",
@@ -104,11 +104,11 @@
       },
       "caching": {
         "title": "Caching",
-        "description": "Nur fur Queries mit Stampede-Prevention"
+        "description": "Nur für Queries mit Stampede-Prevention"
       },
       "cacheInvalidation": {
         "title": "Cache-Invalidierung",
-        "description": "Commandgesteuert nach Schlusselprafix"
+        "description": "Commandgesteuert nach Schlüsselpräfix"
       }
     }
   },
@@ -124,7 +124,7 @@
       "resultPattern": "Integriertes Result-Pattern",
       "pipelineBehaviors": "Pipeline-Behaviors",
       "httpEndpoints": "HTTP-Endpoint-Mapping",
-      "streaming": "Streaming-Unterstutzung",
+      "streaming": "Streaming-Unterstützung",
       "performance": "Leistung",
       "domainEvents": "Domain-Events",
       "fluentValidation": "FluentValidation-Integration"
@@ -147,7 +147,7 @@
   },
   "quickStart": {
     "title": "In Minuten loslegen",
-    "subtitle": "Fugen Sie Qorpe Mediator zu Ihrem Projekt hinzu und beginnen Sie sofort mit CQRS-Patterns.",
+    "subtitle": "Fügen Sie Qorpe Mediator zu Ihrem Projekt hinzu und beginnen Sie sofort mit CQRS-Patterns.",
     "step1": "Paket installieren",
     "step2": "Services registrieren",
     "step3": "Command definieren",
@@ -155,11 +155,11 @@
     "copied": "Kopiert!"
   },
   "footer": {
-    "description": "Enterprise-Grade CQRS Mediator-Bibliothek fur .NET. Entwickelt mit Fokus auf Leistung und Entwicklererfahrung.",
+    "description": "Enterprise-Grade CQRS Mediator-Bibliothek für .NET. Entwickelt mit Fokus auf Leistung und Entwicklererfahrung.",
     "resources": "Ressourcen",
     "documentation": "Dokumentation",
     "migrationGuide": "Migrationsleitfaden",
-    "changelog": "Anderungsprotokoll",
+    "changelog": "Änderungsprotokoll",
     "community": "Community",
     "github": "GitHub",
     "issues": "Issues",
@@ -176,9 +176,9 @@
   "language": {
     "en": "English",
     "de": "Deutsch",
-    "tr": "Turkce",
-    "fr": "Francais",
-    "es": "Espanol",
-    "ar": "Arabic"
+    "tr": "Türkçe",
+    "fr": "Français",
+    "es": "Español",
+    "ar": "العربية"
   }
 }

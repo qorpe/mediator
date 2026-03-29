@@ -1,13 +1,13 @@
 {
   "nav": {
-    "features": "Fonctionnalites",
+    "features": "Fonctionnalités",
     "benchmarks": "Benchmarks",
     "pipeline": "Pipeline",
     "comparison": "Comparaison",
-    "quickStart": "Demarrage rapide"
+    "quickStart": "Démarrage rapide"
   },
   "hero": {
-    "badge": "v1.0.0 Publie",
+    "badge": "v1.0.0 Publié",
     "title": "Mediateur CQRS Enterprise",
     "titleHighlight": "pour .NET",
     "description": "Une alternative haute performance et riche en fonctionnalites a MediatR avec une separation CQRS explicite, un Result pattern integre et 11 behaviors de pipeline pilotes par attributs.",
@@ -17,7 +17,7 @@
   },
   "stats": {
     "fasterPublish": "Publish plus rapide",
-    "lessMemory": "Moins de memoire",
+    "lessMemory": "Moins de mémoire",
     "pipelineBehaviors": "Behaviors Pipeline",
     "testsCoverage": "Tests"
   },
@@ -54,13 +54,13 @@
     "subtitle": "Benchmark contre MediatR v12 avec BenchmarkDotNet. De vrais chiffres, de vraies charges.",
     "sendPerformance": "Performance Send",
     "publishPerformance": "Performance Publish",
-    "memoryUsage": "Utilisation memoire",
+    "memoryUsage": "Utilisation mémoire",
     "mean": "Moyenne",
     "allocated": "Alloue",
     "qorpe": "Qorpe",
     "mediatr": "MediatR",
     "faster": "plus rapide",
-    "lessMemory": "moins de memoire"
+    "lessMemory": "moins de mémoire"
   },
   "pipeline": {
     "title": "Architecture Pipeline puissante",
@@ -72,11 +72,11 @@
       },
       "logging": {
         "title": "Journalisation",
-        "description": "Journalisation structuree avec masquage automatique"
+        "description": "Journalisation structurée avec masquage automatique"
       },
       "exception": {
         "title": "Gestion des exceptions",
-        "description": "Filet de securite avec capture d'erreurs structuree"
+        "description": "Filet de sécurité avec capture d'erreurs structurée"
       },
       "authorization": {
         "title": "Autorisation",
@@ -88,7 +88,7 @@
       },
       "idempotency": {
         "title": "Idempotence",
-        "description": "Deduplication basee sur SHA256 avec TTL"
+        "description": "Déduplication basée sur SHA256 avec TTL"
       },
       "transaction": {
         "title": "Transaction",
@@ -114,7 +114,7 @@
   },
   "comparison": {
     "title": "Pourquoi Qorpe Mediator?",
-    "subtitle": "Une comparaison detaillee avec MediatR pour vous aider a prendre une decision eclairee.",
+    "subtitle": "Une comparaison détaillée avec MediatR pour vous aider a prendre une decision éclairée.",
     "feature": "Fonctionnalite",
     "qorpe": "Qorpe Mediator",
     "mediatr": "MediatR v12",
@@ -147,27 +147,27 @@
   },
   "quickStart": {
     "title": "Commencez en quelques minutes",
-    "subtitle": "Ajoutez Qorpe Mediator a votre projet et commencez a developper avec les patterns CQRS immediatement.",
+    "subtitle": "Ajoutez Qorpe Mediator a votre projet et commencez a développer avec les patterns CQRS immediatement.",
     "step1": "Installer le package",
     "step2": "Enregistrer les services",
-    "step3": "Definir une commande",
+    "step3": "Définir une commande",
     "step4": "Traiter et dispatcher",
-    "copied": "Copie!"
+    "copied": "Copié!"
   },
   "footer": {
-    "description": "Bibliotheque CQRS Mediator enterprise pour .NET. Concue avec un accent sur la performance et l'experience developpeur.",
+    "description": "Bibliotheque CQRS Mediator enterprise pour .NET. Conçue avec un accent sur la performance et l'experience developpeur.",
     "resources": "Ressources",
     "documentation": "Documentation",
     "migrationGuide": "Guide de migration",
     "changelog": "Journal des modifications",
-    "community": "Communaute",
+    "community": "Communauté",
     "github": "GitHub",
     "issues": "Problemes",
     "discussions": "Discussions",
     "nuget": "Package NuGet",
     "legal": "Juridique",
     "mitLicense": "Licence MIT",
-    "rights": "Tous droits reserves."
+    "rights": "Tous droits réservés."
   },
   "theme": {
     "light": "Clair",
@@ -176,9 +176,9 @@
   "language": {
     "en": "English",
     "de": "Deutsch",
-    "tr": "Turkce",
-    "fr": "Francais",
-    "es": "Espanol",
-    "ar": "Arabic"
+    "tr": "Türkçe",
+    "fr": "Français",
+    "es": "Español",
+    "ar": "العربية"
   }
 }
