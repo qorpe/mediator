@@ -7,6 +7,15 @@ using Qorpe.Mediator.Behaviors.Configuration;
 namespace Qorpe.Mediator.Behaviors.Behaviors;
 
 /// <summary>
+/// Non-generic holder for transaction scope state. Shared across all closed generic
+/// TransactionBehavior types so nested dispatch (OuterCommand → InnerCommand) is detected.
+/// </summary>
+internal static class TransactionScope
+{
+    internal static readonly AsyncLocal<bool> IsInTransaction = new();
+}
+
+/// <summary>
 /// Pipeline behavior that wraps command execution in a transaction.
 /// Automatically skips queries. Supports rollback and nested savepoints.
 /// </summary>
@@ -24,6 +33,10 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
     // Cached type check — runs once per closed generic type, not per request
     private static readonly bool IsQueryType = typeof(TRequest).GetInterfaces()
         .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
+
+    // Shared across all closed generic types — must be non-generic to work for nested dispatch
+    // where OuterCommand and InnerCommand produce different closed types.
+    private static readonly AsyncLocal<bool> IsInTransaction = TransactionScope.IsInTransaction;
 
     private readonly IUnitOfWork? _unitOfWork;
     private readonly IPostCommitTaskQueue? _postCommitQueue;
@@ -67,9 +80,18 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
                 "Register an IUnitOfWork implementation in the DI container.");
         }
 
+        // Nested transaction: if already inside a transaction scope, participate without
+        // calling Begin/Commit/Rollback — the outermost behavior owns the transaction.
+        if (IsInTransaction.Value)
+        {
+            _logger.LogDebug("Joining existing transaction for nested {RequestName}", typeof(TRequest).Name);
+            return await next().ConfigureAwait(false);
+        }
+
         var requestName = typeof(TRequest).Name;
         _logger.LogDebug("Beginning transaction for {RequestName}", requestName);
 
+        IsInTransaction.Value = true;
         await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
         TResponse response;
@@ -82,6 +104,7 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         {
             _logger.LogError(ex, "Handler failed for {RequestName}, rolling back transaction", requestName);
             await SafeRollbackAsync(requestName, cancellationToken).ConfigureAwait(false);
+            IsInTransaction.Value = false;
             throw;
         }
 
@@ -89,8 +112,9 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         {
             await _unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
             _logger.LogDebug("Committed transaction for {RequestName}", requestName);
+            IsInTransaction.Value = false;
 
-            // Execute post-commit tasks after successful commit
+            // Execute post-commit tasks after successful commit (outside transaction scope)
             if (_postCommitQueue is not null)
             {
                 await _postCommitQueue.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
@@ -102,6 +126,7 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         {
             _logger.LogError(ex, "Transaction commit failed for {RequestName}, rolling back", requestName);
             await SafeRollbackAsync(requestName, cancellationToken).ConfigureAwait(false);
+            IsInTransaction.Value = false;
             throw;
         }
     }
