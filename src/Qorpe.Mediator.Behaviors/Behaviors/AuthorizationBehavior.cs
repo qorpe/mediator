@@ -15,6 +15,13 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
     where TRequest : IRequest<TResponse>
 {
     public int Order => 400;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly AuthorizeAttribute[] CachedAttributes =
+        typeof(TRequest).GetCustomAttributes(typeof(AuthorizeAttribute), true)
+            .Cast<AuthorizeAttribute>()
+            .ToArray();
+
     private readonly IAuthorizationContext? _authContext;
     private readonly ILogger<AuthorizationBehavior<TRequest, TResponse>> _logger;
     private readonly AuthorizationBehaviorOptions _options;
@@ -36,12 +43,7 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
             return await next().ConfigureAwait(false);
         }
 
-        var authorizeAttributes = typeof(TRequest)
-            .GetCustomAttributes(typeof(AuthorizeAttribute), true)
-            .Cast<AuthorizeAttribute>()
-            .ToArray();
-
-        if (authorizeAttributes.Length == 0)
+        if (CachedAttributes.Length == 0)
         {
             return await next().ConfigureAwait(false);
         }
@@ -54,9 +56,9 @@ public sealed class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
         }
 
         // Check all [Authorize] attributes — ALL must pass
-        for (int i = 0; i < authorizeAttributes.Length; i++)
+        for (int i = 0; i < CachedAttributes.Length; i++)
         {
-            var attr = authorizeAttributes[i];
+            var attr = CachedAttributes[i];
 
             if (attr.Roles is not null)
             {

@@ -18,6 +18,13 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
     where TRequest : IRequest<TResponse>
 {
     public int Order => 600;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly IdempotentAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(IdempotentAttribute), true)
+            .Cast<IdempotentAttribute>()
+            .FirstOrDefault();
+
     private readonly IIdempotencyStore? _store;
     private readonly ILogger<IdempotencyBehavior<TRequest, TResponse>> _logger;
     private readonly IdempotencyBehaviorOptions _options;
@@ -48,11 +55,7 @@ public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior
             return await next().ConfigureAwait(false);
         }
 
-        var idempotentAttr = typeof(TRequest).GetCustomAttributes(typeof(IdempotentAttribute), true)
-            .Cast<IdempotentAttribute>()
-            .FirstOrDefault();
-
-        if (idempotentAttr is null)
+        if (CachedAttribute is not { } idempotentAttr)
         {
             return await next().ConfigureAwait(false);
         }

@@ -18,6 +18,12 @@ public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
     private readonly ILogger<RetryBehavior<TRequest, TResponse>> _logger;
     private readonly RetryBehaviorOptions _options;
 
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly RetryableAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(RetryableAttribute), true)
+            .Cast<RetryableAttribute>()
+            .FirstOrDefault();
+
     // Exception types that should never be retried
     private static readonly HashSet<Type> NonRetryableExceptions = new()
     {
@@ -45,11 +51,7 @@ public sealed class RetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             return await next().ConfigureAwait(false);
         }
 
-        var retryAttr = typeof(TRequest).GetCustomAttributes(typeof(RetryableAttribute), true)
-            .Cast<RetryableAttribute>()
-            .FirstOrDefault();
-
-        if (retryAttr is null)
+        if (CachedAttribute is not { } retryAttr)
         {
             return await next().ConfigureAwait(false);
         }

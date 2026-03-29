@@ -13,6 +13,13 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse> : IPipelineBe
     where TRequest : IRequest<TResponse>
 {
     public int Order => 1001; // Just after CachingBehavior (1000)
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly InvalidatesCacheAttribute[] CachedAttributes =
+        typeof(TRequest).GetCustomAttributes(typeof(InvalidatesCacheAttribute), true)
+            .Cast<InvalidatesCacheAttribute>()
+            .ToArray();
+
     private readonly ICacheInvalidator? _cacheInvalidator;
     private readonly ILogger<CacheInvalidationBehavior<TRequest, TResponse>> _logger;
 
@@ -26,10 +33,7 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse> : IPipelineBe
 
     public async ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        var invalidateAttrs = typeof(TRequest).GetCustomAttributes(typeof(InvalidatesCacheAttribute), true)
-            as InvalidatesCacheAttribute[];
-
-        if (invalidateAttrs is null || invalidateAttrs.Length == 0 || _cacheInvalidator is null)
+        if (CachedAttributes.Length == 0 || _cacheInvalidator is null)
         {
             return await next().ConfigureAwait(false);
         }
@@ -38,18 +42,18 @@ public sealed class CacheInvalidationBehavior<TRequest, TResponse> : IPipelineBe
         var response = await next().ConfigureAwait(false);
 
         // Invalidate cache entries after successful execution
-        for (int i = 0; i < invalidateAttrs.Length; i++)
+        for (int i = 0; i < CachedAttributes.Length; i++)
         {
             try
             {
-                await _cacheInvalidator.InvalidateAsync(invalidateAttrs[i].KeyPrefix, cancellationToken).ConfigureAwait(false);
+                await _cacheInvalidator.InvalidateAsync(CachedAttributes[i].KeyPrefix, cancellationToken).ConfigureAwait(false);
                 _logger.LogDebug("Invalidated cache entries with prefix '{Prefix}' after {RequestName}",
-                    invalidateAttrs[i].KeyPrefix, typeof(TRequest).Name);
+                    CachedAttributes[i].KeyPrefix, typeof(TRequest).Name);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Cache invalidation failed for prefix '{Prefix}' after {RequestName}",
-                    invalidateAttrs[i].KeyPrefix, typeof(TRequest).Name);
+                    CachedAttributes[i].KeyPrefix, typeof(TRequest).Name);
             }
         }
 
