@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qorpe.Mediator.AspNetCore",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qorpe.Mediator.Contracts", "src\Qorpe.Mediator.Contracts\Qorpe.Mediator.Contracts.csproj", "{13D334F6-76A1-440A-B464-63988EF34CA6}"
 EndProject
+Project("{54A90642-561A-45C1-B2C7-D673B8D0CC4E}") = "dashboard", "dashboard\dashboard.esproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qorpe.Mediator.UnitTests", "tests\Qorpe.Mediator.UnitTests\Qorpe.Mediator.UnitTests.csproj", "{1BE52906-F2B5-4D9D-ABB2-52CE5DF3BEC5}"

@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "features": "المميزات",
+    "benchmarks": "الاداء",
+    "pipeline": "خط الانابيب",
+    "comparison": "المقارنة",
+    "quickStart": "بداية سريعة"
+  },
+  "hero": {
+    "badge": "تم اصدار v1.0.0",
+    "title": "وسيط CQRS للمؤسسات",
+    "titleHighlight": "لمنصة .NET",
+    "description": "بديل عالي الاداء وغني بالميزات لـ MediatR مع فصل CQRS صريح ونمط Result مدمج و11 سلوك خط انابيب موجه بالسمات.",
+    "getStarted": "ابدا الان",
+    "viewOnGithub": "عرض على GitHub",
+    "installCommand": "dotnet add package Qorpe.Mediator"
+  },
+  "stats": {
+    "fasterPublish": "نشر اسرع",
+    "lessMemory": "ذاكرة اقل",
+    "pipelineBehaviors": "سلوك خط الانابيب",
+    "testsCoverage": "اختبار"
+  },
+  "features": {
+    "title": "مصمم للانتاج",
+    "subtitle": "كل ما تحتاجه لبناء تطبيقات .NET قوية وقابلة للصيانة مع نمط CQRS.",
+    "cqrs": {
+      "title": "انواع CQRS صريحة",
+      "description": "واجهات ICommand<T> و IQuery<T> منفصلة تفرض الحدود المعمارية في وقت التجميع."
+    },
+    "result": {
+      "title": "نمط Result",
+      "description": "Result<T> وظيفي مع عمليات Map و Bind و Match. لا استثناءات لتدفق التحكم."
+    },
+    "pipeline": {
+      "title": "11 سلوك خط انابيب",
+      "description": "سلوكيات موجهة بالسمات للتدقيق والتسجيل والتحقق والتخزين المؤقت واعادة المحاولة والمزيد."
+    },
+    "performance": {
+      "title": "اداء عالي",
+      "description": "مسار ساخن بدون انعكاس مع اشجار تعبير مجمعة وغير متزامن قائم على ValueTask."
+    },
+    "aspnetcore": {
+      "title": "تكامل ASP.NET Core",
+      "description": "تعيين نقاط نهاية HTTP تعريفي مع سمة [HttpEndpoint] واكتشاف تلقائي."
+    },
+    "streaming": {
+      "title": "دعم البث",
+      "description": "بث IAsyncEnumerable مع دعم كامل لسلوكيات خط الانابيب للبيانات في الوقت الفعلي."
+    }
+  },
+  "benchmarks": {
+    "title": "الاداء الذي يهم",
+    "subtitle": "مقارنة مع MediatR v12 باستخدام BenchmarkDotNet. ارقام حقيقية واحمال عمل حقيقية.",
+    "sendPerformance": "اداء الارسال",
+    "publishPerformance": "اداء النشر",
+    "memoryUsage": "استخدام الذاكرة",
+    "mean": "المتوسط",
+    "allocated": "المخصص",
+    "qorpe": "Qorpe",
+    "mediatr": "MediatR",
+    "faster": "اسرع",
+    "lessMemory": "ذاكرة اقل"
+  },
+  "pipeline": {
+    "title": "معمارية خط انابيب قوية",
+    "subtitle": "11 سلوكا موجها بالسمات مع ترتيب صريح. فقط زين الاوامر والاستعلامات الخاصة بك.",
+    "behaviors": {
+      "audit": {
+        "title": "التدقيق",
+        "description": "معالجة دفعية غير متزامنة مع اخفاء البيانات الحساسة"
+      },
+      "logging": {
+        "title": "التسجيل",
+        "description": "تسجيل منظم مع اخفاء تلقائي"
+      },
+      "exception": {
+        "title": "معالجة الاستثناءات",
+        "description": "شبكة امان مع التقاط اخطاء منظم"
+      },
+      "authorization": {
+        "title": "التفويض",
+        "description": "التحكم في الوصول القائم على الادوار والسياسات"
+      },
+      "validation": {
+        "title": "التحقق",
+        "description": "FluentValidation مع دعم متعدد المحققين"
+      },
+      "idempotency": {
+        "title": "العجز",
+        "description": "ازالة التكرار القائمة على SHA256 مع TTL"
+      },
+      "transaction": {
+        "title": "المعاملة",
+        "description": "للاوامر فقط مع التراجع التلقائي"
+      },
+      "performanceMon": {
+        "title": "الاداء",
+        "description": "مراقبة بعتبات قابلة للتكوين"
+      },
+      "retry": {
+        "title": "اعادة المحاولة",
+        "description": "تراجع اسي مع تقلب"
+      },
+      "caching": {
+        "title": "التخزين المؤقت",
+        "description": "للاستعلامات فقط مع منع التدافع"
+      },
+      "cacheInvalidation": {
+        "title": "ابطال التخزين المؤقت",
+        "description": "موجه بالاوامر حسب بادئة المفتاح"
+      }
+    }
+  },
+  "comparison": {
+    "title": "لماذا Qorpe Mediator؟",
+    "subtitle": "مقارنة مفصلة مع MediatR لمساعدتك في اتخاذ قرار مستنير.",
+    "feature": "الميزة",
+    "qorpe": "Qorpe Mediator",
+    "mediatr": "MediatR v12",
+    "items": {
+      "license": "الرخصة",
+      "cqrsTypes": "انواع CQRS صريحة",
+      "resultPattern": "نمط Result مدمج",
+      "pipelineBehaviors": "سلوكيات خط الانابيب",
+      "httpEndpoints": "تعيين نقاط نهاية HTTP",
+      "streaming": "دعم البث",
+      "performance": "الاداء",
+      "domainEvents": "احداث النطاق",
+      "fluentValidation": "تكامل FluentValidation"
+    },
+    "values": {
+      "mitLicense": "MIT",
+      "apacheLicense": "Apache 2.0",
+      "yes": "نعم",
+      "no": "لا",
+      "partial": "جزئي",
+      "eleven": "11 مدمج",
+      "custom": "مخصص فقط",
+      "native": "اصلي",
+      "thirdParty": "طرف ثالث",
+      "faster": "اسرع بنسبة تصل الى 66%",
+      "baseline": "خط الاساس",
+      "builtIn": "مدمج",
+      "notification": "عبر الاشعارات"
+    }
+  },
+  "quickStart": {
+    "title": "ابدا في دقائق",
+    "subtitle": "اضف Qorpe Mediator الى مشروعك وابدا البناء بانماط CQRS على الفور.",
+    "step1": "تثبيت الحزمة",
+    "step2": "تسجيل الخدمات",
+    "step3": "تعريف امر",
+    "step4": "المعالجة والارسال",
+    "copied": "تم النسخ!"
+  },
+  "footer": {
+    "description": "مكتبة وسيط CQRS للمؤسسات لـ .NET. مصممة مع التركيز على الاداء وتجربة المطور.",
+    "resources": "الموارد",
+    "documentation": "التوثيق",
+    "migrationGuide": "دليل الترحيل",
+    "changelog": "سجل التغييرات",
+    "community": "المجتمع",
+    "github": "GitHub",
+    "issues": "المشكلات",
+    "discussions": "المناقشات",
+    "nuget": "حزمة NuGet",
+    "legal": "قانوني",
+    "mitLicense": "رخصة MIT",
+    "rights": "جميع الحقوق محفوظة."
+  },
+  "theme": {
+    "light": "فاتح",
+    "dark": "داكن"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch",
+    "tr": "Turkce",
+    "fr": "Francais",
+    "es": "Espanol",
+    "ar": "العربية"
+  }
+}

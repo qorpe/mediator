@@ -1,0 +1,184 @@
+{
+  "nav": {
+    "features": "Caracteristicas",
+    "benchmarks": "Rendimiento",
+    "pipeline": "Pipeline",
+    "comparison": "Comparacion",
+    "quickStart": "Inicio rapido"
+  },
+  "hero": {
+    "badge": "v1.0.0 Publicado",
+    "title": "Mediador CQRS Empresarial",
+    "titleHighlight": "para .NET",
+    "description": "Una alternativa de alto rendimiento y rica en funciones a MediatR con separacion CQRS explicita, patron Result integrado y 11 behaviors de pipeline dirigidos por atributos.",
+    "getStarted": "Comenzar",
+    "viewOnGithub": "Ver en GitHub",
+    "installCommand": "dotnet add package Qorpe.Mediator"
+  },
+  "stats": {
+    "fasterPublish": "Publish mas rapido",
+    "lessMemory": "Menos memoria",
+    "pipelineBehaviors": "Behaviors Pipeline",
+    "testsCoverage": "Pruebas"
+  },
+  "features": {
+    "title": "Construido para produccion",
+    "subtitle": "Todo lo que necesitas para construir aplicaciones .NET robustas y mantenibles con el patron CQRS.",
+    "cqrs": {
+      "title": "Tipos CQRS explicitos",
+      "description": "Interfaces ICommand<T> e IQuery<T> separadas imponen limites arquitectonicos en tiempo de compilacion."
+    },
+    "result": {
+      "title": "Patron Result",
+      "description": "Result<T> funcional con operaciones Map, Bind, Match. Sin excepciones para el flujo de control."
+    },
+    "pipeline": {
+      "title": "11 Behaviors Pipeline",
+      "description": "Behaviors dirigidos por atributos para auditoria, registro, validacion, cache, reintento y mas."
+    },
+    "performance": {
+      "title": "Alto rendimiento",
+      "description": "Ruta critica sin reflexion con expression trees compilados y async basado en ValueTask."
+    },
+    "aspnetcore": {
+      "title": "Integracion ASP.NET Core",
+      "description": "Mapeo declarativo de endpoints HTTP con atributo [HttpEndpoint] y descubrimiento automatico."
+    },
+    "streaming": {
+      "title": "Soporte Streaming",
+      "description": "Streaming IAsyncEnumerable con soporte completo de behaviors pipeline para datos en tiempo real."
+    }
+  },
+  "benchmarks": {
+    "title": "Rendimiento que importa",
+    "subtitle": "Benchmark contra MediatR v12 con BenchmarkDotNet. Numeros reales, cargas reales.",
+    "sendPerformance": "Rendimiento Send",
+    "publishPerformance": "Rendimiento Publish",
+    "memoryUsage": "Uso de memoria",
+    "mean": "Media",
+    "allocated": "Asignado",
+    "qorpe": "Qorpe",
+    "mediatr": "MediatR",
+    "faster": "mas rapido",
+    "lessMemory": "menos memoria"
+  },
+  "pipeline": {
+    "title": "Arquitectura Pipeline poderosa",
+    "subtitle": "11 behaviors dirigidos por atributos con orden explicito. Simplemente decore sus commands y queries.",
+    "behaviors": {
+      "audit": {
+        "title": "Auditoria",
+        "description": "Procesamiento por lotes asincrono con enmascaramiento de datos sensibles"
+      },
+      "logging": {
+        "title": "Registro",
+        "description": "Registro estructurado con enmascaramiento automatico"
+      },
+      "exception": {
+        "title": "Manejo de excepciones",
+        "description": "Red de seguridad con captura de errores estructurada"
+      },
+      "authorization": {
+        "title": "Autorizacion",
+        "description": "Control de acceso basado en roles y politicas"
+      },
+      "validation": {
+        "title": "Validacion",
+        "description": "FluentValidation con soporte multi-validador"
+      },
+      "idempotency": {
+        "title": "Idempotencia",
+        "description": "Deduplicacion basada en SHA256 con TTL"
+      },
+      "transaction": {
+        "title": "Transaccion",
+        "description": "Solo commands con rollback automatico"
+      },
+      "performanceMon": {
+        "title": "Rendimiento",
+        "description": "Monitoreo con umbrales configurables"
+      },
+      "retry": {
+        "title": "Reintento",
+        "description": "Backoff exponencial con jitter"
+      },
+      "caching": {
+        "title": "Cache",
+        "description": "Solo queries con prevencion de stampede"
+      },
+      "cacheInvalidation": {
+        "title": "Invalidacion de cache",
+        "description": "Dirigida por commands con prefijo de clave"
+      }
+    }
+  },
+  "comparison": {
+    "title": "Por que Qorpe Mediator?",
+    "subtitle": "Una comparacion detallada con MediatR para ayudarte a tomar una decision informada.",
+    "feature": "Caracteristica",
+    "qorpe": "Qorpe Mediator",
+    "mediatr": "MediatR v12",
+    "items": {
+      "license": "Licencia",
+      "cqrsTypes": "Tipos CQRS explicitos",
+      "resultPattern": "Patron Result integrado",
+      "pipelineBehaviors": "Behaviors Pipeline",
+      "httpEndpoints": "Mapeo HTTP Endpoint",
+      "streaming": "Soporte Streaming",
+      "performance": "Rendimiento",
+      "domainEvents": "Domain Events",
+      "fluentValidation": "Integracion FluentValidation"
+    },
+    "values": {
+      "mitLicense": "MIT",
+      "apacheLicense": "Apache 2.0",
+      "yes": "Si",
+      "no": "No",
+      "partial": "Parcial",
+      "eleven": "11 integrados",
+      "custom": "Solo personalizado",
+      "native": "Nativo",
+      "thirdParty": "Terceros",
+      "faster": "Hasta 66% mas rapido",
+      "baseline": "Linea base",
+      "builtIn": "Integrado",
+      "notification": "Via Notification"
+    }
+  },
+  "quickStart": {
+    "title": "Comienza en minutos",
+    "subtitle": "Agrega Qorpe Mediator a tu proyecto y comienza a desarrollar con patrones CQRS de inmediato.",
+    "step1": "Instalar el paquete",
+    "step2": "Registrar servicios",
+    "step3": "Definir un command",
+    "step4": "Procesar y despachar",
+    "copied": "Copiado!"
+  },
+  "footer": {
+    "description": "Biblioteca CQRS Mediator empresarial para .NET. Construida con enfoque en rendimiento y experiencia del desarrollador.",
+    "resources": "Recursos",
+    "documentation": "Documentacion",
+    "migrationGuide": "Guia de migracion",
+    "changelog": "Registro de cambios",
+    "community": "Comunidad",
+    "github": "GitHub",
+    "issues": "Problemas",
+    "discussions": "Discusiones",
+    "nuget": "Paquete NuGet",
+    "legal": "Legal",
+    "mitLicense": "Licencia MIT",
+    "rights": "Todos los derechos reservados."
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch",
+    "tr": "Turkce",
+    "fr": "Francais",
+    "es": "Espanol",
+    "ar": "Arabic"
+  }
+}
