@@ -28,6 +28,10 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
     private readonly CachingBehaviorOptions _options;
 
+    // Cached type check — runs once per closed generic type, not per request
+    private static readonly bool IsCommandType = typeof(TRequest).GetInterfaces()
+        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
+
     // Bounded lock pool for stampede prevention with automatic eviction
     private static readonly BoundedLockPool LockPool = new();
 
@@ -49,7 +53,7 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         }
 
         // Skip commands — caching is for queries only
-        if (IsCommand())
+        if (IsCommandType)
         {
             return await next().ConfigureAwait(false);
         }
@@ -135,9 +139,4 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         return $"{typeName}:{json}";
     }
 
-    private static bool IsCommand()
-    {
-        return typeof(TRequest).GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
-    }
 }

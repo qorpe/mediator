@@ -21,6 +21,10 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
             .Cast<TransactionalAttribute>()
             .FirstOrDefault();
 
+    // Cached type check — runs once per closed generic type, not per request
+    private static readonly bool IsQueryType = typeof(TRequest).GetInterfaces()
+        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
+
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ILogger<TransactionBehavior<TRequest, TResponse>> _logger;
     private readonly TransactionBehaviorOptions _options;
@@ -43,7 +47,7 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         }
 
         // Skip queries — transactions are for commands only
-        if (IsQuery())
+        if (IsQueryType)
         {
             return await next().ConfigureAwait(false);
         }
@@ -106,9 +110,4 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         }
     }
 
-    private static bool IsQuery()
-    {
-        return typeof(TRequest).GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
-    }
 }
