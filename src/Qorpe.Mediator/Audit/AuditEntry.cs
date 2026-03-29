@@ -66,6 +66,21 @@ public sealed class AuditEntry
     public string? ExceptionType { get; set; }
 
     /// <summary>
+    /// Gets or sets the action name from IAuditableRequest (e.g., "Order.Create").
+    /// </summary>
+    public string? ActionName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the entity type from IAuditableRequest (e.g., "Order").
+    /// </summary>
+    public string? EntityType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the entity identifier from IAuditableRequest (e.g., "12345").
+    /// </summary>
+    public string? EntityId { get; set; }
+
+    /// <summary>
     /// Gets or sets additional metadata about the request.
     /// </summary>
     public Dictionary<string, string> Metadata { get; set; } = new(StringComparer.Ordinal);
@@ -87,6 +102,9 @@ public sealed class AuditEntry
         IsSuccess = false;
         ErrorMessage = null;
         ExceptionType = null;
+        ActionName = null;
+        EntityType = null;
+        EntityId = null;
         Metadata.Clear();
     }
 }
