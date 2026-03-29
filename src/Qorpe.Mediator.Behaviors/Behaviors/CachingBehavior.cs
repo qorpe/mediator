@@ -17,6 +17,13 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
     where TRequest : IRequest<TResponse>
 {
     public int Order => 1000;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly CacheableAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(CacheableAttribute), true)
+            .Cast<CacheableAttribute>()
+            .FirstOrDefault();
+
     private readonly IDistributedCache? _cache;
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
     private readonly CachingBehaviorOptions _options;
@@ -47,11 +54,7 @@ public sealed class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
             return await next().ConfigureAwait(false);
         }
 
-        var cacheableAttr = typeof(TRequest).GetCustomAttributes(typeof(CacheableAttribute), true)
-            .Cast<CacheableAttribute>()
-            .FirstOrDefault();
-
-        if (cacheableAttr is null)
+        if (CachedAttribute is not { } cacheableAttr)
         {
             return await next().ConfigureAwait(false);
         }

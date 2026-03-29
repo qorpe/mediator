@@ -15,6 +15,13 @@ public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior
     where TRequest : IRequest<TResponse>
 {
     public int Order => 800;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly PerformanceThresholdAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(PerformanceThresholdAttribute), true)
+            .Cast<PerformanceThresholdAttribute>()
+            .FirstOrDefault();
+
     private readonly ILogger<PerformanceBehavior<TRequest, TResponse>> _logger;
     private readonly PerformanceBehaviorOptions _options;
 
@@ -53,14 +60,11 @@ public sealed class PerformanceBehavior<TRequest, TResponse> : IPipelineBehavior
 
         var requestName = typeof(TRequest).Name;
 
-        // Check per-request attribute override, fall back to global options
-        var thresholdAttr = typeof(TRequest).GetCustomAttributes(typeof(PerformanceThresholdAttribute), true)
-            as PerformanceThresholdAttribute[];
-        var warningMs = thresholdAttr is { Length: > 0 } && thresholdAttr[0].WarningMs > 0
-            ? thresholdAttr[0].WarningMs
+        var warningMs = CachedAttribute is not null && CachedAttribute.WarningMs > 0
+            ? CachedAttribute.WarningMs
             : _options.WarningThresholdMs;
-        var criticalMs = thresholdAttr is { Length: > 0 } && thresholdAttr[0].CriticalMs > 0
-            ? thresholdAttr[0].CriticalMs
+        var criticalMs = CachedAttribute is not null && CachedAttribute.CriticalMs > 0
+            ? CachedAttribute.CriticalMs
             : _options.CriticalThresholdMs;
 
         // Over 30 seconds — always critical regardless of thresholds

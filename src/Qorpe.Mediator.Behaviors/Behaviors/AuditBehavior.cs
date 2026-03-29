@@ -19,6 +19,19 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
     where TRequest : IRequest<TResponse>
 {
     public int Order => 100;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly AuditableAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(AuditableAttribute), true)
+            .Cast<AuditableAttribute>()
+            .FirstOrDefault();
+
+    // Cached type checks
+    private static readonly bool IsCommandType = typeof(TRequest).GetInterfaces()
+        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
+    private static readonly bool IsQueryType = typeof(TRequest).GetInterfaces()
+        .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
+
     private readonly IAuditStore _auditStore;
     private readonly IAuditUserContext? _userContext;
     private readonly ILogger<AuditBehavior<TRequest, TResponse>> _logger;
@@ -48,10 +61,6 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             return await next().ConfigureAwait(false);
         }
 
-        var auditableAttr = typeof(TRequest).GetCustomAttributes(typeof(AuditableAttribute), true)
-            .Cast<AuditableAttribute>()
-            .FirstOrDefault();
-
         var entry = new AuditEntry
         {
             RequestType = typeof(TRequest).FullName ?? typeof(TRequest).Name,
@@ -61,7 +70,7 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             Timestamp = DateTimeOffset.UtcNow
         };
 
-        if (auditableAttr?.IncludeRequestBody != false)
+        if (CachedAttribute?.IncludeRequestBody != false)
         {
             entry.RequestData = SafeSerializeRequest(request);
         }
@@ -75,9 +84,9 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             entry.IsSuccess = true;
             entry.DurationMs = sw.Elapsed.TotalMilliseconds;
 
-            if (auditableAttr?.IncludeResponseBody == true)
+            if (CachedAttribute?.IncludeResponseBody == true)
             {
-                entry.ResponseData = SafeSerializeResponse(response, auditableAttr.MaxResponseSize);
+                entry.ResponseData = SafeSerializeResponse(response, CachedAttribute.MaxResponseSize);
             }
 
             await SafeSaveAuditEntryAsync(entry, cancellationToken).ConfigureAwait(false);
@@ -98,17 +107,10 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
 
     private bool ShouldAudit()
     {
-        var isCommand = typeof(TRequest).GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ICommand<>));
+        if (IsCommandType && _options.AuditCommands) return true;
+        if (IsQueryType && _options.AuditQueries) return true;
 
-        var isQuery = typeof(TRequest).GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>));
-
-        if (isCommand && _options.AuditCommands) return true;
-        if (isQuery && _options.AuditQueries) return true;
-
-        // Check for explicit [Auditable] attribute
-        return typeof(TRequest).GetCustomAttributes(typeof(AuditableAttribute), true).Length > 0;
+        return CachedAttribute is not null;
     }
 
     private string SafeSerializeRequest(TRequest request)

@@ -14,6 +14,13 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
     where TRequest : IRequest<TResponse>
 {
     public int Order => 700;
+
+    // Cached attribute lookup — runs once per closed generic type (per TRequest), not per request
+    private static readonly TransactionalAttribute? CachedAttribute =
+        typeof(TRequest).GetCustomAttributes(typeof(TransactionalAttribute), true)
+            .Cast<TransactionalAttribute>()
+            .FirstOrDefault();
+
     private readonly IUnitOfWork? _unitOfWork;
     private readonly ILogger<TransactionBehavior<TRequest, TResponse>> _logger;
     private readonly TransactionBehaviorOptions _options;
@@ -41,12 +48,7 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
             return await next().ConfigureAwait(false);
         }
 
-        // Check [Transactional] attribute or if it's a command (implicit transaction)
-        var transactionalAttr = typeof(TRequest).GetCustomAttributes(typeof(TransactionalAttribute), true)
-            .Cast<TransactionalAttribute>()
-            .FirstOrDefault();
-
-        if (transactionalAttr is null)
+        if (CachedAttribute is null)
         {
             return await next().ConfigureAwait(false);
         }
