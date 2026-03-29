@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Qorpe.Mediator.Abstractions;
 using Qorpe.Mediator.Audit;
+using Qorpe.Mediator.Behaviors.Attributes;
 using Qorpe.Mediator.Behaviors.Behaviors;
 using Qorpe.Mediator.Behaviors.Configuration;
 using Qorpe.Mediator.Results;
@@ -155,5 +156,104 @@ public class AuditBehaviorTests
         await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
 
         _store.GetAll()[0].CorrelationId.Should().NotBeNullOrEmpty();
+    }
+
+    // --- IAuditableRequest metadata tests ---
+
+    [Auditable]
+    public sealed record AuditableMetadataCommand(string OrderId) : ICommand<Result>, IAuditableRequest
+    {
+        public string ActionName => "Order.Create";
+        public string? EntityType => "Order";
+        public string? EntityId => OrderId;
+        public object? AuditMetadata => new { Source = "API", Priority = "High" };
+    }
+
+    public sealed record AuditableWithoutAttributeCommand(string Data) : ICommand<Result>, IAuditableRequest
+    {
+        public string ActionName => "Data.Process";
+        public string? EntityType => null;
+        public string? EntityId => null;
+        public object? AuditMetadata => null;
+    }
+
+    [Fact]
+    public async Task Should_Populate_ActionName_EntityType_EntityId_From_IAuditableRequest()
+    {
+        var logger = Substitute.For<ILogger<AuditBehavior<AuditableMetadataCommand, Result>>>();
+        var opts = new AuditBehaviorOptions { AuditCommands = true };
+        var behavior = new AuditBehavior<AuditableMetadataCommand, Result>(
+            _store, logger, Options.Create(opts));
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        await behavior.Handle(new AuditableMetadataCommand("ORD-123"), next, CancellationToken.None);
+
+        var entries = _store.GetAll();
+        entries.Should().ContainSingle();
+        var entry = entries[0];
+        entry.ActionName.Should().Be("Order.Create");
+        entry.EntityType.Should().Be("Order");
+        entry.EntityId.Should().Be("ORD-123");
+        entry.Metadata.Should().ContainKey("AuditMetadata");
+        entry.Metadata["AuditMetadata"].Should().Contain("API");
+        entry.Metadata["AuditMetadata"].Should().Contain("High");
+    }
+
+    [Fact]
+    public async Task Should_Audit_IAuditableRequest_Without_Auditable_Attribute()
+    {
+        var logger = Substitute.For<ILogger<AuditBehavior<AuditableWithoutAttributeCommand, Result>>>();
+        var opts = new AuditBehaviorOptions { AuditCommands = false, AuditQueries = false };
+        var behavior = new AuditBehavior<AuditableWithoutAttributeCommand, Result>(
+            _store, logger, Options.Create(opts));
+
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        await behavior.Handle(new AuditableWithoutAttributeCommand("test"), next, CancellationToken.None);
+
+        var entries = _store.GetAll();
+        entries.Should().ContainSingle();
+        entries[0].ActionName.Should().Be("Data.Process");
+        entries[0].EntityType.Should().BeNull();
+        entries[0].EntityId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Should_Not_Populate_Metadata_Fields_Without_IAuditableRequest()
+    {
+        var behavior = CreateBehavior();
+        RequestHandlerDelegate<Result> next = () => new ValueTask<Result>(Result.Success());
+
+        await behavior.Handle(new TransactionalCommand("data"), next, CancellationToken.None);
+
+        var entry = _store.GetAll()[0];
+        entry.ActionName.Should().BeNull();
+        entry.EntityType.Should().BeNull();
+        entry.EntityId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Should_Capture_Metadata_On_Failure_With_IAuditableRequest()
+    {
+        var logger = Substitute.For<ILogger<AuditBehavior<AuditableMetadataCommand, Result>>>();
+        var opts = new AuditBehaviorOptions { AuditCommands = true };
+        var behavior = new AuditBehavior<AuditableMetadataCommand, Result>(
+            _store, logger, Options.Create(opts));
+
+        RequestHandlerDelegate<Result> next = () => throw new InvalidOperationException("fail");
+
+        var act = () => behavior.Handle(
+            new AuditableMetadataCommand("ORD-456"), next, CancellationToken.None).AsTask();
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+
+        var entries = _store.GetAll();
+        entries.Should().ContainSingle();
+        var entry = entries[0];
+        entry.IsSuccess.Should().BeFalse();
+        entry.ActionName.Should().Be("Order.Create");
+        entry.EntityId.Should().Be("ORD-456");
+        entry.ErrorMessage.Should().Contain("fail");
     }
 }

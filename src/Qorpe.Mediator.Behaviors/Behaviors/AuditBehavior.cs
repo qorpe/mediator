@@ -70,6 +70,27 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             Timestamp = DateTimeOffset.UtcNow
         };
 
+        // Enrich with IAuditableRequest metadata if implemented
+        if (request is IAuditableRequest auditableRequest)
+        {
+            entry.ActionName = auditableRequest.ActionName;
+            entry.EntityType = auditableRequest.EntityType;
+            entry.EntityId = auditableRequest.EntityId;
+
+            if (auditableRequest.AuditMetadata is not null)
+            {
+                try
+                {
+                    var metadataJson = JsonSerializer.Serialize(auditableRequest.AuditMetadata);
+                    entry.Metadata["AuditMetadata"] = metadataJson;
+                }
+                catch
+                {
+                    // Best-effort metadata serialization
+                }
+            }
+        }
+
         if (CachedAttribute?.IncludeRequestBody != false)
         {
             entry.RequestData = SafeSerializeRequest(request);
@@ -105,12 +126,17 @@ public sealed class AuditBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
         }
     }
 
+    // Cached check for IAuditableRequest implementation
+    private static readonly bool ImplementsIAuditableRequest =
+        typeof(IAuditableRequest).IsAssignableFrom(typeof(TRequest));
+
     private bool ShouldAudit()
     {
         if (IsCommandType && _options.AuditCommands) return true;
         if (IsQueryType && _options.AuditQueries) return true;
 
-        return CachedAttribute is not null;
+        // Audit if [Auditable] attribute or IAuditableRequest interface is present
+        return CachedAttribute is not null || ImplementsIAuditableRequest;
     }
 
     private string SafeSerializeRequest(TRequest request)
